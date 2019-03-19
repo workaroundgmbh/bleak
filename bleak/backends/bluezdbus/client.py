@@ -246,6 +246,12 @@ class BleakClientBlueZDBus(BaseBleakClient):
         if response:
             return await self.read_gatt_char(_uuid)
 
+    async def read_gatt_descriptor(self, _uuid: str) -> bytearray:
+        return await super().read_gatt_descriptor(_uuid)
+
+    async def write_gatt_descriptor(self, _uuid: str, data: bytearray, response: bool = False) -> Any:
+        return await super().write_gatt_descriptor(_uuid, data, response)
+
     async def start_notify(
         self, _uuid: str, callback: Callable[[str, Any], Any], **kwargs
     ) -> None:

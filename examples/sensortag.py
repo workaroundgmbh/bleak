@@ -111,7 +111,7 @@ async def run(address, loop, debug=False):
                 ":".join(["{:02x}".format(x) for x in system_id[::-1]])
             )
         )
-
+        client.characteristics[client.characteristics.keys()[0]]
         model_number = await client.read_gatt_char(MODEL_NBR_UUID)
         print("Model Number: {0}".format("".join(map(chr, model_number))))
 
