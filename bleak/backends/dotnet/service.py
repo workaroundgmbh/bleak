@@ -8,10 +8,11 @@ from Windows.Devices.Bluetooth.GenericAttributeProfile import GattDeviceService
 
 
 class BleakGATTServiceDotNet(BleakGATTService):
-
     def __init__(self, obj: GattDeviceService):
         super().__init__(obj)
-        self.__chars = [BleakGATTCharacteristicDotNet(c) for c in obj.GetAllCharacteristics()]
+        self.__chars = [
+            BleakGATTCharacteristicDotNet(c) for c in obj.GetAllCharacteristics()
+        ]
 
     @property
     def uuid(self):

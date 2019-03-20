@@ -32,4 +32,3 @@ class BleakGATTDescriptorDotNet(BleakGATTDescriptor):
     @property
     def handle(self):
         return self.obj.AttributeHandle
-    

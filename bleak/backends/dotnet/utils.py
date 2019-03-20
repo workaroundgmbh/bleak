@@ -13,7 +13,11 @@ from bleak.exc import BleakDotNetTaskError
 # Pythonf for .NET CLR imports
 from System import Action
 from System.Threading.Tasks import Task
-from Windows.Foundation import AsyncOperationCompletedHandler, IAsyncOperation, AsyncStatus
+from Windows.Foundation import (
+    AsyncOperationCompletedHandler,
+    IAsyncOperation,
+    AsyncStatus,
+)
 
 
 async def wrap_Task(task, loop):
@@ -30,7 +34,7 @@ async def wrap_Task(task, loop):
     """
     done = asyncio.Event()
     # Register Action<Task> callback that triggers the above asyncio.Event.
-    task.ContinueWith(Action[Task](lambda x: loop.call_soon_threadsafe(done.set)))
+    task.ContinueWith(Action[Task]())
     # Wait for callback.
     await done.wait()
     # TODO: Handle IsCancelled.
@@ -55,13 +59,10 @@ async def wrap_IAsyncOperation(op, return_type, loop):
 
     """
     done = asyncio.Event()
-
-    def operation_completed(x, y):
-        loop.call_soon_threadsafe(done.set)
-
     # Register AsyncOperationCompletedHandler callback that triggers the above asyncio.Event.
-    op.Completed = AsyncOperationCompletedHandler[return_type](operation_completed)
-
+    op.Completed = AsyncOperationCompletedHandler[return_type](
+        lambda x, y: loop.call_soon_threadsafe(done.set)
+    )
     # Wait for callback.
     await done.wait()
 
@@ -101,3 +102,36 @@ class TaskWrapper(Awaitable):
             raise BleakDotNetTaskError(self.task.Exception.ToString())
 
         return self.task.Result
+
+
+class IAsyncOperationAwaitable(Awaitable):
+
+    __slots__ = ["operation", "done", "return_type", "_loop"]
+
+    def __init__(self, operation, return_type, loop):
+        self.operation = IAsyncOperation[return_type](operation)
+        self.done = asyncio.Event()
+        self.return_type = return_type
+        self._loop = loop
+
+    def __await__(self):
+        # Register AsyncOperationCompletedHandler callback that triggers the above asyncio.Event.
+        self.operation.Completed = AsyncOperationCompletedHandler[self.return_type](
+            lambda x, y: self._loop.call_soon_threadsafe(self.done.set)
+        )
+        yield from self.done.wait()
+        return self
+
+    @property
+    def result(self):
+        if self.operation.Status == AsyncStatus.Completed:
+            return self.operation.GetResults()
+        elif self.operation.Status == AsyncStatus.Error:
+            # Exception occurred. Wrap it in BleakDotNetTaskError
+            # to make it catchable.
+            raise BleakDotNetTaskError(self.operation.ErrorCode.ToString())
+        else:
+            # TODO: Handle IsCancelled.
+            raise BleakDotNetTaskError(
+                "IAsyncOperation Status: {0}".format(self.operation.Status)
+            )

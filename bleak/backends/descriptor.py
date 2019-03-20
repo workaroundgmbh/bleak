@@ -32,4 +32,3 @@ class BleakGATTDescriptor(abc.ABC):
     @abc.abstractmethod
     def handle(self) -> int:
         raise NotImplementedError()
-

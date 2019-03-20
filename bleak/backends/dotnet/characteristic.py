@@ -33,7 +33,9 @@ class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
 
     def __init__(self, obj: GattCharacteristic):
         super().__init__(obj)
-        self.__desc = [BleakGATTDescriptorDotNet(d, self.uuid) for d in obj.GetAllDescriptors()]
+        self.__desc = [
+            BleakGATTDescriptorDotNet(d, self.uuid) for d in obj.GetAllDescriptors()
+        ]
         self.__props = [
             _GattCharacteristicsPropertiesEnum[v][0]
             for v in [2 ** n for n in range(10)]

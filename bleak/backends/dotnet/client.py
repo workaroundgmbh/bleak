@@ -15,7 +15,7 @@ from bleak.backends.dotnet.service import BleakGATTServiceDotNet
 from bleak.exc import BleakError, BleakDotNetTaskError
 from bleak.backends.client import BaseBleakClient
 from bleak.backends.dotnet.discovery import discover
-from bleak.backends.dotnet.utils import wrap_Task, wrap_IAsyncOperation
+from bleak.backends.dotnet.utils import wrap_Task, wrap_IAsyncOperation, IAsyncOperationAwaitable
 
 # CLR imports
 # Import of Bleak CLR->UWP Bridge.
@@ -25,7 +25,11 @@ from BleakBridge import Bridge
 from System import Array, Byte
 from Windows.Foundation import IAsyncOperation, TypedEventHandler
 from Windows.Storage.Streams import DataReader, DataWriter, IBuffer
-from Windows.Devices.Bluetooth import BluetoothLEDevice, BluetoothConnectionStatus, BluetoothCacheMode
+from Windows.Devices.Bluetooth import (
+    BluetoothLEDevice,
+    BluetoothConnectionStatus,
+    BluetoothCacheMode,
+)
 from Windows.Devices.Bluetooth.GenericAttributeProfile import (
     GattDeviceService,
     GattDeviceServicesResult,
@@ -38,7 +42,7 @@ from Windows.Devices.Bluetooth.GenericAttributeProfile import (
     GattWriteResult,
     GattValueChangedEventArgs,
     GattCharacteristicProperties,
-    GattClientCharacteristicConfigurationDescriptorValue
+    GattClientCharacteristicConfigurationDescriptorValue,
 )
 
 logger = logging.getLogger(__name__)
@@ -393,16 +397,29 @@ class BleakClientDotNet(BaseBleakClient):
 
     async def _start_notify(self, characteristic, callback):
 
-        if characteristic.CharacteristicProperties & GattCharacteristicProperties.Indicate:
+        if (
+            characteristic.CharacteristicProperties
+            & GattCharacteristicProperties.Indicate
+        ):
             cccd = GattClientCharacteristicConfigurationDescriptorValue.Indicate
-        elif characteristic.CharacteristicProperties & GattCharacteristicProperties.Notify:
+        elif (
+            characteristic.CharacteristicProperties
+            & GattCharacteristicProperties.Notify
+        ):
             cccd = GattClientCharacteristicConfigurationDescriptorValue.Notify
         else:
-            cccd = getattr(GattClientCharacteristicConfigurationDescriptorValue, 'None')
+            cccd = getattr(GattClientCharacteristicConfigurationDescriptorValue, "None")
+
+        # status = await IAsyncOperationAwaitable(
+        #     characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(cccd),
+        #     return_type=GattCommunicationStatus, loop=self.loop
+        # )
 
         status = await wrap_IAsyncOperation(
             IAsyncOperation[GattCommunicationStatus](
-                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(cccd)
+                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                    cccd
+                )
             ),
             return_type=GattCommunicationStatus,
             loop=self.loop,
@@ -411,10 +428,12 @@ class BleakClientDotNet(BaseBleakClient):
             # Server has been informed of clients interest.
             try:
                 # TODO: Enable adding multiple handlers!
-                self._callbacks[characteristic.Uuid.ToString()] = TypedEventHandler[GattCharacteristic, GattValueChangedEventArgs](
-                        _notification_wrapper(callback)
+                self._callbacks[characteristic.Uuid.ToString()] = TypedEventHandler[
+                    GattCharacteristic, GattValueChangedEventArgs
+                ](_notification_wrapper(callback))
+                self._bridge.AddValueChangedCallback(
+                    characteristic, self._callbacks[characteristic.Uuid.ToString()]
                 )
-                self._bridge.AddValueChangedCallback(characteristic, self._callbacks[characteristic.Uuid.ToString()])
             except Exception as e:
                 # This usually happens when a device reports that it support indicate, but it actually doesn't.
                 # TODO: Do not use Indicate? Return with Notify?
@@ -433,7 +452,9 @@ class BleakClientDotNet(BaseBleakClient):
         status = await wrap_IAsyncOperation(
             IAsyncOperation[GattCommunicationStatus](
                 characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
-                    getattr(GattClientCharacteristicConfigurationDescriptorValue, 'None')
+                    getattr(
+                        GattClientCharacteristicConfigurationDescriptorValue, "None"
+                    )
                 )
             ),
             return_type=GattCommunicationStatus,
