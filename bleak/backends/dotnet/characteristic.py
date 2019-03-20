@@ -31,7 +31,7 @@ _GattCharacteristicsPropertiesEnum = {
 class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
     """Interface for the Bleak representation of a GATT Characteristic"""
 
-    def __init__(self, obj):
+    def __init__(self, obj: GattCharacteristic):
         super().__init__(obj)
         self.__desc = [BleakGATTDescriptorDotNet(d, self.uuid) for d in obj.GetAllDescriptors()]
         self.__props = [
