@@ -9,6 +9,8 @@ import abc
 import asyncio
 from typing import Callable, Any
 
+from bleak.backends.service import BleakGATTServiceCollection
+
 
 class BaseBleakClient(abc.ABC):
     """The Client Interface for Bleak Backend implementations to implement."""
@@ -16,9 +18,8 @@ class BaseBleakClient(abc.ABC):
     def __init__(self, address, loop=None, **kwargs):
         self.address = address
         self.loop = loop if loop else asyncio.get_event_loop()
-        self.services = {}
-        self.characteristics = {}
-        self.descriptors = {}
+
+        self.services = BleakGATTServiceCollection()
 
         self._services_resolved = False
         self._notification_callbacks = {}
@@ -57,7 +58,7 @@ class BaseBleakClient(abc.ABC):
     # GATT services methods
 
     @abc.abstractmethod
-    async def get_services(self):
+    async def get_services(self) -> BleakGATTServiceCollection:
         raise NotImplementedError()
 
     # I/O methods
@@ -73,7 +74,7 @@ class BaseBleakClient(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def read_gatt_descriptor(self, _uuid: str) -> bytearray:
+    async def read_gatt_descriptor(self, handle: int) -> bytearray:
         raise NotImplementedError()
 
     @abc.abstractmethod

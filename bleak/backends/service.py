@@ -6,7 +6,7 @@ Created on 2019-03-19 by hbldh <henrik.blidh@nedomkull.com>
 
 """
 import abc
-from typing import List, Union
+from typing import List, Union, Iterator
 
 from bleak import BleakError
 from bleak.uuids import uuidstr_to_str
@@ -35,11 +35,11 @@ class BleakGATTService(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def characteristics(self) -> List:
+    def characteristics(self) -> List[BleakGATTCharacteristic]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def add_characteristic(self):
+    def add_characteristic(self, characteristic: BleakGATTCharacteristic):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -55,8 +55,15 @@ class BleakGATTServiceCollection(object):
         self.__characteristics = {}
         self.__descriptors = {}
 
-    def __iter__(self):
-        return self.services.values()
+    def __getitem__(self, item) -> Union[BleakGATTService, BleakGATTCharacteristic, BleakGATTDescriptor]:
+        """Get a service, charactersitic or descriptor from uuid."""
+        return self.services.get(
+            item, self.characteristics.get(
+                item, self.descriptors.get(
+                    item, None)))
+
+    def __iter__(self) -> Iterator[BleakGATTService]:
+        return iter(self.services.values())
 
     @property
     def services(self) -> dict:
@@ -76,7 +83,7 @@ class BleakGATTServiceCollection(object):
         else:
             raise BleakError("This service is already present in this BleakGATTServiceCollection!")
 
-    def get_service(self, _uuid):
+    def get_service(self, _uuid) -> BleakGATTService:
         return self.services.get(_uuid, None)
 
     def add_characteristic(self, characteristic: BleakGATTCharacteristic):
@@ -86,15 +93,15 @@ class BleakGATTServiceCollection(object):
         else:
             raise BleakError("This characteristic is already present in this BleakGATTServiceCollection!")
 
-    def get_characteristic(self, _uuid):
+    def get_characteristic(self, _uuid) -> BleakGATTCharacteristic:
         return self.characteristics.get(_uuid, None)
 
     def add_descriptor(self, descriptor: BleakGATTDescriptor):
-        if descriptor.uuid not in self.__descriptors:
-            self.__descriptors[descriptor.uuid] = descriptor
+        if descriptor.handle not in self.__descriptors:
+            self.__descriptors[descriptor.handle] = descriptor
             self.__characteristics[descriptor.characteristic_uuid].add_descriptor(descriptor)
         else:
             raise BleakError("This descriptor is already present in this BleakGATTServiceCollection!")
 
-    def get_descriptor(self, _uuid):
-        return self.descriptors.get(_uuid, None)
+    def get_descriptor(self, handle) -> BleakGATTDescriptor:
+        return self.descriptors.get(handle, None)

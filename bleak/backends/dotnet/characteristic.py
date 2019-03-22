@@ -8,6 +8,7 @@ Created on 2019-03-19 by hbldh <henrik.blidh@nedomkull.com>
 from typing import List, Union
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.backends.descriptor import BleakGATTDescriptor
 from bleak.backends.dotnet.descriptor import BleakGATTDescriptorDotNet
 
 from Windows.Devices.Bluetooth.GenericAttributeProfile import GattCharacteristic
@@ -32,11 +33,10 @@ _GattCharacteristicsPropertiesEnum = {
 class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
     """Interface for the Bleak representation of a GATT Characteristic"""
 
-
     def __init__(self, obj: GattCharacteristic):
         super().__init__(obj)
-        self.__desc = [
-            BleakGATTDescriptorDotNet(d, self.uuid) for d in obj.GetAllDescriptors()
+        self.__descriptors = [
+            # BleakGATTDescriptorDotNet(d, self.uuid) for d in obj.GetAllDescriptors()
         ]
         self.__props = [
             _GattCharacteristicsPropertiesEnum[v][0]
@@ -64,8 +64,8 @@ class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
         return self.__props
 
     @property
-    def descriptors(self) -> List:
-        return self.__desc
+    def descriptors(self) -> List[BleakGATTDescriptorDotNet]:
+        return self.__descriptors
 
     def get_descriptor(self, _uuid) -> Union[BleakGATTDescriptorDotNet, None]:
         try:
@@ -73,6 +73,5 @@ class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
         except StopIteration:
             return None
 
-    def add_descriptor(self, _uuid: str):
-        pass
-
+    def add_descriptor(self, descriptor: BleakGATTDescriptor):
+        self.__descriptors.append(descriptor)

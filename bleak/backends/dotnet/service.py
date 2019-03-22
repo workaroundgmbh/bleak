@@ -1,5 +1,6 @@
 from typing import List
 
+
 from bleak.uuids import uuidstr_to_str
 from bleak.backends.service import BleakGATTService
 from bleak.backends.dotnet.characteristic import BleakGATTCharacteristicDotNet
@@ -11,8 +12,8 @@ class BleakGATTServiceDotNet(BleakGATTService):
 
     def __init__(self, obj: GattDeviceService):
         super().__init__(obj)
-        self.__chars = [
-            BleakGATTCharacteristicDotNet(c) for c in obj.GetAllCharacteristics()
+        self.__characteristics = [
+           #BleakGATTCharacteristicDotNet(c) for c in obj.GetAllCharacteristics()
         ]
 
     @property
@@ -25,7 +26,7 @@ class BleakGATTServiceDotNet(BleakGATTService):
 
     @property
     def characteristics(self) -> List:
-        return self.__chars
+        return self.__characteristics
 
     def get_characteristic(self, _uuid):
         try:
@@ -33,5 +34,5 @@ class BleakGATTServiceDotNet(BleakGATTService):
         except StopIteration:
             return None
 
-    def add_characteristic(self):
-        pass
+    def add_characteristic(self, characteristic: BleakGATTCharacteristicDotNet):
+        self.__characteristics.append(characteristic)

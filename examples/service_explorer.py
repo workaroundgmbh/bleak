@@ -35,7 +35,7 @@ async def run(address, loop, debug=False):
         x = await client.is_connected()
         log.info("Connected: {0}".format(x))
 
-        for service in client.service_objects:
+        for service in client.services:
             # service.obj is instance of 'Windows.Devices.Bluetooth.GenericAttributeProfile.GattDeviceService'
             log.info(
                 "[Service] {0}: {1}".format(service.uuid, service.description)
@@ -53,7 +53,7 @@ async def run(address, loop, debug=False):
                 )
                 for descriptor in char.descriptors:
                     # descriptor.obj is instance of 'Windows.Devices.Bluetooth.GenericAttributeProfile.GattDescriptor
-                    value = await client.read_gatt_descriptor(descriptor.uuid)
+                    value = await client.read_gatt_descriptor(descriptor.handle)
                     log.info(
                         "\t\t[Descriptor] {0}: (Handle: {1}) | Value: {2} ".format(
                             descriptor.uuid, descriptor.handle, bytes(value)
