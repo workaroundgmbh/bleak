@@ -105,7 +105,7 @@ class TaskWrapper(Awaitable):
 
 
 class IAsyncOperationAwaitable(Awaitable):
-
+    """Does not work yet... DO not use..."""
     __slots__ = ["operation", "done", "return_type", "_loop"]
 
     def __init__(self, operation, return_type, loop):

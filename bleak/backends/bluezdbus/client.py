@@ -27,7 +27,6 @@ class BleakClientBlueZDBus(BaseBleakClient):
         # Backend specific, TXDBus objects and data
         self._device_path = None
         self._bus = None
-        self._descriptors = {}
         self._rules = {}
 
         self._char_path_to_uuid = {}
@@ -157,7 +156,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         )
         self.services = {}
         self.characteristics = {}
-        self._descriptors = {}
+        self.descriptors = {}
         for object_path, interfaces in objs.items():
             logger.debug(utils.format_GATT_object(object_path, interfaces))
             if defs.GATT_SERVICE_INTERFACE in interfaces:
@@ -171,8 +170,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
                 self._char_path_to_uuid[object_path] = char.get("UUID")
             elif defs.GATT_DESCRIPTOR_INTERFACE in interfaces:
                 desc = interfaces.get(defs.GATT_DESCRIPTOR_INTERFACE)
-                self._descriptors[desc.get("UUID")] = desc
-                self._descriptors[desc.get("UUID")]["Path"] = object_path
+                self.descriptors[desc.get("UUID")] = desc
+                self.descriptors[desc.get("UUID")]["Path"] = object_path
 
         self._services_resolved = True
         return self.services
@@ -360,8 +359,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
             self.characteristics[char.get("UUID")]["Path"] = object_path
         elif defs.GATT_DESCRIPTOR_INTERFACE in interfaces:
             desc = interfaces.get(defs.GATT_DESCRIPTOR_INTERFACE)
-            self._descriptors[desc.get("UUID")] = desc
-            self._descriptors[desc.get("UUID")]["Path"] = object_path
+            self.descriptors[desc.get("UUID")] = desc
+            self.descriptors[desc.get("UUID")]["Path"] = object_path
 
     def _interface_removed_callback(self, message):
         logger.debug("Interface Removed: {0}".format(message.body))
