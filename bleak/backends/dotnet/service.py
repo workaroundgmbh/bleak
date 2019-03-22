@@ -8,6 +8,7 @@ from Windows.Devices.Bluetooth.GenericAttributeProfile import GattDeviceService
 
 
 class BleakGATTServiceDotNet(BleakGATTService):
+
     def __init__(self, obj: GattDeviceService):
         super().__init__(obj)
         self.__chars = [
@@ -27,4 +28,10 @@ class BleakGATTServiceDotNet(BleakGATTService):
         return self.__chars
 
     def get_characteristic(self, _uuid):
+        try:
+            return next(filter(lambda x: x.uuid == _uuid, self.characteristics))
+        except StopIteration:
+            return None
+
+    def add_characteristic(self):
         pass

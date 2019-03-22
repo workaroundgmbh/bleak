@@ -13,6 +13,7 @@ from bleak.backends.dotnet.descriptor import BleakGATTDescriptorDotNet
 from Windows.Devices.Bluetooth.GenericAttributeProfile import GattCharacteristic
 
 # Python representation of <class 'Windows.Devices.Bluetooth.GenericAttributeProfile.GattCharacteristicProperties'>
+# TODO: Formalize this to Enum for all backends.
 _GattCharacteristicsPropertiesEnum = {
     None: ("None", "The characteristic doesn’t have any properties that apply"),
     1: ("Broadcast", "The characteristic supports broadcasting"),
@@ -30,6 +31,7 @@ _GattCharacteristicsPropertiesEnum = {
 
 class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
     """Interface for the Bleak representation of a GATT Characteristic"""
+
 
     def __init__(self, obj: GattCharacteristic):
         super().__init__(obj)
@@ -70,3 +72,7 @@ class BleakGATTCharacteristicDotNet(BleakGATTCharacteristic):
             return next(filter(lambda x: x.uuid == _uuid, self.descriptors))
         except StopIteration:
             return None
+
+    def add_descriptor(self, _uuid: str):
+        pass
+

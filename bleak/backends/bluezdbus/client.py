@@ -7,6 +7,7 @@ from typing import Callable, Any
 from bleak.exc import BleakError
 from bleak.backends.client import BaseBleakClient
 from bleak.backends.bluezdbus import reactor, defs, signals, utils
+from bleak.backends.bluezdbus.discovery import discover
 from bleak.backends.bluezdbus.utils import get_device_object_path, get_managed_objects
 
 # txdbus MUST be imported AFTER bleak.backends.bluezdbus.reactor!
@@ -40,6 +41,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
             Boolean representing connection status.
 
         """
+
+        await discover(timeout=0.5, loop=self.loop)
 
         # Create system bus
         self._bus = await txdbus_connect(reactor, busAddress="system").asFuture(

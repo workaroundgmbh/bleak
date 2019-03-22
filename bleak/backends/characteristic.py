@@ -50,3 +50,7 @@ class BleakGATTCharacteristic(abc.ABC):
     @abc.abstractmethod
     def get_descriptor(self, _uuid: str) -> Union[BleakGATTDescriptor, None]:
         raise NotImplementedError()
+
+    @abc.abstractmethod
+    def add_descriptor(self, descriptor: BleakGATTDescriptor):
+        raise NotImplementedError()
