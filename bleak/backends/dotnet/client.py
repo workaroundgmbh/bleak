@@ -391,15 +391,15 @@ class BleakClientDotNet(BaseBleakClient):
                 )
             )
 
-    async def _start_notify(self, characteristic: GattCharacteristic, callback: Callable[[str, Any], Any]):
+    async def _start_notify(self, characteristic_obj: GattCharacteristic, callback: Callable[[str, Any], Any]):
 
         if (
-            characteristic.CharacteristicProperties
+            characteristic_obj.CharacteristicProperties
             & GattCharacteristicProperties.Indicate
         ):
             cccd = GattClientCharacteristicConfigurationDescriptorValue.Indicate
         elif (
-            characteristic.CharacteristicProperties
+            characteristic_obj.CharacteristicProperties
             & GattCharacteristicProperties.Notify
         ):
             cccd = GattClientCharacteristicConfigurationDescriptorValue.Notify
@@ -413,7 +413,7 @@ class BleakClientDotNet(BaseBleakClient):
 
         status = await wrap_IAsyncOperation(
             IAsyncOperation[GattCommunicationStatus](
-                characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+                characteristic_obj.WriteClientCharacteristicConfigurationDescriptorAsync(
                     cccd
                 )
             ),
@@ -424,11 +424,11 @@ class BleakClientDotNet(BaseBleakClient):
             # Server has been informed of clients interest.
             try:
                 # TODO: Enable adding multiple handlers!
-                self._callbacks[characteristic.Uuid.ToString()] = TypedEventHandler[
+                self._callbacks[characteristic_obj.Uuid.ToString()] = TypedEventHandler[
                     GattCharacteristic, GattValueChangedEventArgs
                 ](_notification_wrapper(callback))
                 self._bridge.AddValueChangedCallback(
-                    characteristic, self._callbacks[characteristic.Uuid.ToString()]
+                    characteristic_obj, self._callbacks[characteristic_obj.Uuid.ToString()]
                 )
             except Exception as e:
                 # This usually happens when a device reports that it support indicate, but it actually doesn't.
@@ -465,7 +465,7 @@ class BleakClientDotNet(BaseBleakClient):
             )
         else:
             callback = self._callbacks.pop(characteristic.uuid)
-            self._bridge.RemoveValueChangedCallback(characteristic, callback)
+            self._bridge.RemoveValueChangedCallback(characteristic.obj, callback)
 
 
 def _notification_wrapper(func: Callable):
