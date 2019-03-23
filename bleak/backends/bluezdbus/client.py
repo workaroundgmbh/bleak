@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
 import asyncio
+import re
+import subprocess
 from functools import wraps
 from typing import Callable, Any
 
@@ -36,6 +38,13 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         self._char_path_to_uuid = {}
 
+        # We need to know BlueZ version since battery level characteristic
+        # are stored in a separate DBus interface in the BlueZ >= 5.48.
+        p = subprocess.Popen(["bluetoothctl", "--version"], stdout=subprocess.PIPE)
+        out, _ = p.communicate()
+        s = re.search(b"(\\d+).(\\d+)", out.strip(b"'"))
+        self._bluez_version = tuple(map(int, s.groups()))
+
     # Connectivity methods
 
     async def connect(self) -> bool:
@@ -46,7 +55,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         """
 
-        await discover(timeout=0.5, loop=self.loop)
+        # A Discover must have been run before connecting to any devices. Do a quick one here
+        # to ensure that it has been done.
+        await discover(timeout=0.1, loop=self.loop)
 
         # Create system bus
         self._bus = await txdbus_connect(reactor, busAddress="system").asFuture(
@@ -194,8 +205,19 @@ class BleakClientBlueZDBus(BaseBleakClient):
         """
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
-            # TODO: Raise error instead?
-            return None
+            # Special handling for BlueZ >= 5.48, where Battery Service (0000180f-0000-1000-8000-00805f9b34fb:)
+            # has been moved to interface org.bluez.Battery1 instead of as a regular service.
+            if _uuid == "00002a19-0000-1000-8000-00805f9b34fb" and (self._bluez_version[0] == 5 and self._bluez_version[1] >= 48):
+                props = await self._get_device_properties(interface=defs.BATTERY_INTERFACE)
+                # Simulate regular characteristics read to be consistent over all platforms.
+                value = bytearray([props.get('Percentage', ''), ])
+                logger.debug(
+                    "Read Battery Level {0} | {1}: {2}".format(
+                        _uuid, self._device_path, value
+                    )
+                )
+                return value
+            raise BleakError("Characteristic with UUID {0} could not be found!".format(_uuid))
 
         value = bytearray(
             await self._bus.callRemote(
@@ -354,14 +376,14 @@ class BleakClientBlueZDBus(BaseBleakClient):
         ).asFuture(self.loop)
         return out
 
-    async def _get_device_properties(self):
+    async def _get_device_properties(self, interface=defs.DEVICE_INTERFACE):
         return await self._bus.callRemote(
             self._device_path,
             "GetAll",
             interface=defs.PROPERTIES_INTERFACE,
             destination=defs.BLUEZ_SERVICE,
             signature="s",
-            body=[defs.DEVICE_INTERFACE],
+            body=[interface, ],
             returnSignature="a{sv}",
         ).asFuture(self.loop)
 
