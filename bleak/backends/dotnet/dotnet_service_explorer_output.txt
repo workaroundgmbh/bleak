@@ -1,0 +1,73 @@
+[Service] 00001800-0000-1000-8000-00805f9b34fb: Generic Access Profile
+	[Characteristic] 00002a00-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'SensorTag 2.0'
+	[Characteristic] 00002a01-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'\x00\x00'
+	[Characteristic] 00002a04-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'P\x00\xa0\x00\x00\x00\xe8\x03'
+[Service] 00001801-0000-1000-8000-00805f9b34fb: Generic Attribute Profile
+[Service] 0000180a-0000-1000-8000-00805f9b34fb: Device Information
+	[Characteristic] 00002a23-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'\x05\t\xcc\x00\x00\x89q$'
+	[Characteristic] 00002a24-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'CC2650 SensorTag'
+	[Characteristic] 00002a25-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'N.A.'
+	[Characteristic] 00002a26-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'1.30 (May 23 2016)'
+	[Characteristic] 00002a27-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'PCB 1.2/1.3'
+	[Characteristic] 00002a28-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'N.A.'
+	[Characteristic] 00002a29-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'Texas Instruments'
+	[Characteristic] 00002a2a-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'\xfe\x00experimental'
+	[Characteristic] 00002a50-0000-1000-8000-00805f9b34fb: (read) | Name: , Value: b'\x01\r\x00\x00\x00\x10\x01'
+[Service] 0000180f-0000-1000-8000-00805f9b34fb: Battery Service
+	[Characteristic] 00002a19-0000-1000-8000-00805f9b34fb: (read,notify) | Name: , Value: b'O'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 31) | Value: b'\x00\x00'
+		[Descriptor] 00002908-0000-1000-8000-00805f9b34fb: (Handle: 32) | Value: b'\x04\x01'
+		[Descriptor] 00002904-0000-1000-8000-00805f9b34fb: (Handle: 33) | Value: b"\x04\x00\xad'\x01\x111"
+[Service] f000aa00-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa01-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'\x00\x00\x00\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 37) | Value: b'\x00\x00'
+	[Characteristic] f000aa02-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00'
+	[Characteristic] f000aa03-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'd'
+[Service] f000aa20-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa21-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'\x00\x00\x00\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 45) | Value: b'\x00\x00'
+	[Characteristic] f000aa22-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00'
+	[Characteristic] f000aa23-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'd'
+[Service] f000aa40-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa41-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'\x00\x00\x00\x00\x00\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 53) | Value: b'\x00\x00'
+	[Characteristic] f000aa42-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00'
+	[Characteristic] f000aa44-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'd'
+[Service] f000aa80-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa81-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 61) | Value: b'\x00\x00'
+	[Characteristic] f000aa82-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00\x02'
+	[Characteristic] f000aa83-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'd'
+[Service] f000aa70-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa71-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'\x00\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 69) | Value: b'\x00\x00'
+	[Characteristic] f000aa72-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00'
+	[Characteristic] f000aa73-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'd'
+[Service] 0000ffe0-0000-1000-8000-00805f9b34fb: Vendor specific
+	[Characteristic] 0000ffe1-0000-1000-8000-00805f9b34fb: (notify) | Name: Key Press State, Value: None
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 77) | Value: b'\x00\x00'
+		[Descriptor] 00002901-0000-1000-8000-00805f9b34fb: (Handle: 78) | Value: b'Key Press State'
+[Service] f000aa64-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000aa65-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x7f'
+	[Characteristic] f000aa66-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00'
+[Service] f000ac00-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000ac01-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x00\x00\x00\x00'
+	[Characteristic] f000ac02-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x04 \x16\x00 '
+	[Characteristic] f000ac03-0451-4000-b000-000000000000: (read,write) | Name: , Value: b'\x05\x00'
+[Service] f000ccc0-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000ccc1-0451-4000-b000-000000000000: (read,notify) | Name: , Value: b'0\x00\x00\x00\xc0\x03'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 94) | Value: b'\x00\x00'
+	[Characteristic] f000ccc2-0451-4000-b000-000000000000: (write) | Name: , Value: None
+	[Characteristic] f000ccc3-0451-4000-b000-000000000000: (write) | Name: , Value: None
+[Service] f000ffc0-0451-4000-b000-000000000000: Unknown
+	[Characteristic] f000ffc1-0451-4000-b000-000000000000: (write-without-response,write,notify) | Name: Img Identify, Value: None
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 102) | Value: b'\x00\x00'
+		[Descriptor] 00002901-0000-1000-8000-00805f9b34fb: (Handle: 103) | Value: b'Img Identify'
+	[Characteristic] f000ffc2-0451-4000-b000-000000000000: (write-without-response,write,notify) | Name: Img Block, Value: None
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 106) | Value: b'\x00\x00'
+		[Descriptor] 00002901-0000-1000-8000-00805f9b34fb: (Handle: 107) | Value: b'Img Block'
+	[Characteristic] f000ffc3-0451-4000-b000-000000000000: (write-without-response,write) | Name: Img Count, Value: None
+		[Descriptor] 00002901-0000-1000-8000-00805f9b34fb: (Handle: 110) | Value: b'Img Count'
+	[Characteristic] f000ffc4-0451-4000-b000-000000000000: (read,notify) | Name: Img Status, Value: b'\x00'
+		[Descriptor] 00002902-0000-1000-8000-00805f9b34fb: (Handle: 113) | Value: b'\x00\x00'
+		[Descriptor] 00002901-0000-1000-8000-00805f9b34fb: (Handle: 114) | Value: b'Img Status'
