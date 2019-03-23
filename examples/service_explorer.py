@@ -42,7 +42,7 @@ async def run(address, loop, debug=False):
             )
             for char in service.characteristics:
                 # char.obj is instance of 'Windows.Devices.Bluetooth.GenericAttributeProfile.GattCharacteristic'
-                if 'Read' in char.properties:
+                if 'read' in char.properties:
                     value = bytes(await client.read_gatt_char(char.uuid))
                 else:
                     value = None

@@ -7,9 +7,10 @@ from bleak.backends.bluezdbus.characteristic import BleakGATTCharacteristicBlueZ
 
 class BleakGATTServiceBlueZDBus(BleakGATTService):
 
-    def __init__(self, obj):
+    def __init__(self, obj, path):
         super().__init__(obj)
         self.__characteristics = []
+        self.__path = path
 
     @property
     def uuid(self) -> str:
@@ -28,3 +29,7 @@ class BleakGATTServiceBlueZDBus(BleakGATTService):
 
     def add_characteristic(self, characteristic: BleakGATTCharacteristicBlueZDBus):
         self.__characteristics.append(characteristic)
+
+    @property
+    def path(self):
+        return self.__path

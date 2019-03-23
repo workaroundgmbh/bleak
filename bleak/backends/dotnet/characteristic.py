@@ -17,16 +17,16 @@ from Windows.Devices.Bluetooth.GenericAttributeProfile import GattCharacteristic
 # TODO: Formalize this to Enum for all backends.
 _GattCharacteristicsPropertiesEnum = {
     None: ("None", "The characteristic doesn’t have any properties that apply"),
-    1: ("Broadcast", "The characteristic supports broadcasting"),
-    2: ("Read", "The characteristic is readable"),
-    4: ("WriteWithoutResponse", "The characteristic supports Write Without Response"),
-    8: ("Write", "The characteristic is writable"),
-    16: ("Notify", "The characteristic is notifiable"),
-    32: ("Indicate", "The characteristic is indicatable"),
-    64: ("AuthenticatedSignedWrites", "The characteristic supports signed writes"),
-    128: ("ExtendedProperties", "The ExtendedProperties Descriptor is present"),
-    256: ("ReliableWrites", "The characteristic supports reliable writes"),
-    512: ("WritableAuxiliaries", "The characteristic has writable auxiliaries"),
+    1: ("Broadcast".lower(), "The characteristic supports broadcasting"),
+    2: ("Read".lower(), "The characteristic is readable"),
+    4: ("Write-Without-Response".lower(), "The characteristic supports Write Without Response"),
+    8: ("Write".lower(), "The characteristic is writable"),
+    16: ("Notify".lower(), "The characteristic is notifiable"),
+    32: ("Indicate".lower(), "The characteristic is indicatable"),
+    64: ("Authenticated-Signed-Writes".lower(), "The characteristic supports signed writes"),
+    128: ("Extended-Properties".lower(), "The ExtendedProperties Descriptor is present"),
+    256: ("Reliable-Writes".lower(), "The characteristic supports reliable writes"),
+    512: ("Writable-Auxiliaries".lower(), "The characteristic has writable auxiliaries"),
 }
 
 
