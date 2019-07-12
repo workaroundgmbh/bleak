@@ -575,6 +575,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
                    not message_body_map['Connected']:
                     logger.debug("Device {} disconnected."
                                  .format(self.address))
+
+                    self.loop.create_task(self._cleanup())
+
                     if self.disconnect_callback is not None:
                         self.disconnect_callback(self)
 
