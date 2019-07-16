@@ -143,6 +143,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
         await asyncio.gather(
                 *(self.stop_notify(_uuid) for _uuid in self._subscriptions))
 
+        self._bus.disconnect()
+
     async def disconnect(self) -> bool:
         """Disconnect from the specified GATT server.
 
@@ -152,15 +154,17 @@ class BleakClientBlueZDBus(BaseBleakClient):
         """
         logger.debug("Disconnecting from BLE device...")
 
-        await self._cleanup()
-
         await self._bus.callRemote(
             self._device_path,
             "Disconnect",
             interface=defs.DEVICE_INTERFACE,
             destination=defs.BLUEZ_SERVICE,
         ).asFuture(self.loop)
-        return not await self.is_connected()
+
+        disconnected = not await self.is_connected()
+
+        await self._cleanup()
+        return disconnected
 
     async def is_connected(self) -> bool:
         """Check connection status between this client and the server.
