@@ -108,7 +108,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
         # A Discover must have been run before connecting to any devices. Do a quick one here
         # to ensure that it has been done.
         timeout = kwargs.get("timeout", self._timeout)
-        await discover(timeout=timeout, device=self.device, loop=self.loop)
+        if timeout > 0:
+            await discover(timeout=timeout, device=self.device, loop=self.loop)
 
         self._reactor = AsyncioSelectorReactor(self.loop)
 
