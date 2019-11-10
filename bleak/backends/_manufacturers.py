@@ -1932,5 +1932,8 @@ MANUFACTURERS = {
     0x0786: "HLP Controls Pty Limited",
     0x0787: "Pangaea Solution",
     0x0788: "BubblyNet, LLC",
-    0xFFFF: "This value has special meaning depending on the context in which it used. Link Manager Protocol (LMP): This value may be used in the internal and interoperability tests before a Company ID has been assigned. This value shall not be used in shipping end products. Device ID Profile: This value is reserved as the default vendor ID when no Device ID service record is present in a remote device.",
+    0xFFFF: "This value has special meaning depending on the context in which it used. Link Manager Protocol (LMP): "
+    "This value may be used in the internal and interoperability tests before a Company ID has been assigned. "
+    "This value shall not be used in shipping end products. Device ID Profile: This value is reserved as the "
+    "default vendor ID when no Device ID service record is present in a remote device.",
 }

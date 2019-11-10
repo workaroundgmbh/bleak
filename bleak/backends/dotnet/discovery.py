@@ -14,7 +14,7 @@ from asyncio.events import AbstractEventLoop
 from bleak.backends.device import BLEDevice
 
 # Import of Bleak CLR->UWP Bridge. It is not needed here, but it enables loading of Windows.Devices
-from BleakBridge import Bridge
+from BleakBridge import Bridge  # noqa: F401 'BleakBridge.Bridge' imported but unused (Ignore for flake8)
 
 from System import Array, Byte
 from Windows.Devices import Enumeration
@@ -97,7 +97,7 @@ async def discover(
         logger.debug("Could not remove event handlers: {0}...".format(e))
 
     found = []
-    for d in devices.values():
+    for d in list(devices.values()):
         bdaddr = _format_bdaddr(d.BluetoothAddress)
         uuids = []
         for u in d.Advertisement.ServiceUuids:

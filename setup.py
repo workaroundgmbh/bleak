@@ -8,12 +8,12 @@ import io
 import os
 import sys
 from shutil import rmtree
-
+import subprocess  # nosec
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = "bleak"
-DESCRIPTION = "Bluetooth Low Energy platform Agnostic Klient"
+NAME = "bleak-proglove"
+DESCRIPTION = "Bluetooth Low Energy platform Agnostic Klient (ProGlove's fork)"
 URL = "https://github.com/hbldh/bleak"
 EMAIL = "henrik.blidh@nedomkull.com"
 AUTHOR = "Henrik Blidh"
@@ -38,7 +38,7 @@ with io.open(os.path.join(here, "HISTORY.rst"), encoding="utf-8") as f:
 
 # Load the package's __version__.py module as a dictionary.
 about = {}
-with open(os.path.join(here, NAME, "__version__.py")) as f:
+with open(os.path.join(here, "bleak", "__version__.py")) as f:
     exec(f.read(), about)
 
 
@@ -75,10 +75,26 @@ class UploadCommand(Command):
         sys.exit()
 
 
+def _get_extra_dev_string() -> str:
+    git_file_hash = subprocess.check_output([  # nosec
+        'git', 'log', '--follow', '-1', '--pretty=%H',
+        os.path.join(here, "bleak", "__version__.py")]).decode().split('\n')[0]
+
+    num_commits = int(subprocess.check_output([
+        'git', 'rev-list', '--count', git_file_hash+'..HEAD']
+    ).decode().split('\n')[0])
+
+
+    if num_commits > 0:
+        return '-%u' % num_commits
+
+    return ''
+
+
 # Where the magic happens:
 setup(
     name=NAME,
-    version=about["__version__"],
+    version=about["__version__"] + _get_extra_dev_string(),
     description=DESCRIPTION,
     long_description=long_description,
     author=AUTHOR,

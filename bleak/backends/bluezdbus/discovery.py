@@ -2,21 +2,23 @@
 
 import asyncio
 import logging
+from typing import Callable, List, Any, Dict
 
 from bleak.backends.device import BLEDevice
-from bleak.backends.bluezdbus import reactor, defs
+from bleak.backends.bluezdbus import defs
 from bleak.backends.bluezdbus.utils import validate_mac_address
 
-# txdbus.client MUST be imported AFTER bleak.backends.bluezdbus.reactor!
 from txdbus import client
-
+from txdbus.error import RemoteError
+from twisted.internet.asyncioreactor import AsyncioSelectorReactor
+from twisted.internet.error import ReactorNotRunning
 
 logger = logging.getLogger(__name__)
 
 
-def _filter_on_adapter(objs, pattern="hci0"):
+def filter_on_adapter(objs, pattern="hci0"):
     for path, interfaces in objs.items():
-        adapter = interfaces.get("org.bluez.Adapter1")
+        adapter = interfaces.get(defs.ADAPTER_INTERFACE)
         if adapter is None:
             continue
 
@@ -28,7 +30,7 @@ def _filter_on_adapter(objs, pattern="hci0"):
 
 def _filter_on_device(objs):
     for path, interfaces in objs.items():
-        device = interfaces.get("org.bluez.Device1")
+        device = interfaces.get(defs.DEVICE_INTERFACE)
         if device is None:
             continue
 
@@ -48,9 +50,340 @@ def _device_info(path, props):
                 address = None
         rssi = props.get("RSSI", "?")
         return name, address, rssi, path
-    except Exception as e:
-        # logger.exception(e, exc_info=True)
+    except Exception:
         return None, None, None, None
+
+
+def _parse_device(path, props):
+    if not props:
+        logger.debug(
+            "Disregarding %s since no properties could be obtained." % path
+        )
+        return None
+
+    name, address, _, path = _device_info(path, props)
+    if address is None:
+        return None
+
+    uuids = props.get("UUIDs", [])
+    manufacturer_data = props.get("ManufacturerData", {})
+    return BLEDevice(
+            address,
+            name,
+            {"path": path, "props": props},
+            uuids=uuids,
+            manufacturer_data=manufacturer_data,
+        )
+
+
+class AsyncDiscovery():
+
+    def __init__(self, callback: Callable[[BLEDevice], None]=None,
+                 loop=None, device="hci0", filters: Dict[str, Any] = None):
+        """State keeper to discover nearby Bluetooth Low Energy devices and get
+        a call for each discovered device in an asynchronous way.
+
+        For possible values for `filters`, see the parameters to the
+        ``SetDiscoveryFilter`` method in the `BlueZ docs
+        <https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/adapter-api.txt?h=5.48&id=0d1e3b9c5754022c779da129025d493a198d49cf>`_
+
+        The filters are applied and the callback registered with the object is
+        called every time a new device appears or the properties of an already
+        discovered device changes. This might happen frequently, since a change
+        in the RSSI value is considered a property change.
+
+        Args:
+            callback (Callable[[bleak.BLEDevice], None]): called for each discovered device.
+            loop (asyncio.AbstractEventLoop): Optional event loop to use.
+            device (str): Bluetooth device to use for discovery.
+            filters (dict): A dict of filters to be applied on discovery.
+
+        """
+        self.callback = callback
+        self.device = device
+        self.loop = loop if loop else asyncio.get_event_loop()
+        self.rules = list()
+        self.cached_devices = {}
+        self.bus = None
+        self.devices = {}
+        self.adapter_path = ""
+        self.is_scanning = False
+
+        self.filters = filters if filters is not None else dict()
+        self.filters["Transport"] = "le"
+
+        self.reactor = AsyncioSelectorReactor(loop)
+
+    async def _power_off(self):
+        await self.bus.callRemote(
+            self.adapter_path,
+            "Set",
+            interface=defs.PROPERTIES_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
+            signature="ssv",
+            body=[defs.ADAPTER_INTERFACE, 'Powered', False],
+        ).asFuture(self.loop)
+
+    async def _power_on(self):
+        await self.bus.callRemote(
+            self.adapter_path,
+            "Set",
+            interface=defs.PROPERTIES_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
+            signature="ssv",
+            body=[defs.ADAPTER_INTERFACE, 'Powered', True],
+        ).asFuture(self.loop)
+
+    async def _restart_discovery(self):
+        """Stop and start the discovery."""
+
+        await asyncio.sleep(1)
+        await self._power_off()
+        await asyncio.sleep(1)
+        await self._power_on()
+        await asyncio.sleep(1)
+
+        await self.stop_discovery()
+        await asyncio.sleep(3)
+        await self._start_discovery()
+
+    async def _start_discovery(self):
+        """Start discovering of nearby BLE devices.
+
+        The ``Transport`` parameter is always set to ``le`` by default in Bleak.
+
+        """
+        if self.is_scanning:
+            # Scanning already in progress. No need to restart.
+            return
+
+        self.bus = await client.connect(self.reactor, "system").asFuture(self.loop)
+
+        # Add signal listeners
+        self.rules.append(
+            await self.bus.addMatch(
+                self._parse_msg,
+                interface=defs.OBJECT_MANAGER_INTERFACE,
+                member="InterfacesAdded",
+                path='/'
+            ).asFuture(self.loop)
+        )
+        self.rules.append(
+            await self.bus.addMatch(
+                self._parse_msg,
+                interface=defs.OBJECT_MANAGER_INTERFACE,
+                member="InterfacesRemoved",
+                path_namespace="/org/bluez",
+            ).asFuture(self.loop)
+        )
+        self.rules.append(
+            await self.bus.addMatch(
+                self._parse_msg,
+                interface=defs.PROPERTIES_INTERFACE,
+                member="PropertiesChanged",
+                path_namespace="/org/bluez",
+            ).asFuture(self.loop)
+        )
+
+        # Find the HCI device to use for scanning and get cached device properties
+        objects = await self.bus.callRemote(
+            "/",
+            "GetManagedObjects",
+            interface=defs.OBJECT_MANAGER_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
+        ).asFuture(self.loop)
+        self.adapter_path, interface = filter_on_adapter(objects,
+                                                          self.device)
+        self.cached_devices = dict(_filter_on_device(objects))
+
+        await self.resume_discovery()
+
+    async def suspend_discovery(self):
+        if not self.is_scanning:
+            return
+
+        try:
+            await self.bus.callRemote(
+                self.adapter_path,
+                "StopDiscovery",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+            ).asFuture(self.loop)
+        except RemoteError as e:
+            logger.error("Stop discovery failed: {0}".format(e))
+
+        self.is_scanning = False
+
+    async def resume_discovery(self):
+        if self.is_scanning:
+            return
+
+        try:
+            await self.bus.callRemote(
+                self.adapter_path,
+                "SetDiscoveryFilter",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+                signature="a{sv}",
+                body=[self.filters],
+            ).asFuture(self.loop)
+            await self.bus.callRemote(
+                self.adapter_path,
+                "StartDiscovery",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+            ).asFuture(self.loop)
+        except RemoteError as e:
+            logger.error("Stop discovery failed: {0}".format(e))
+
+        self.is_scanning = True
+
+
+    async def stop_discovery(self):
+        """
+        Stop looking for nearby devices and provide a list of all devices
+        discovered in the discovery session. If a device has been advertising
+        but became unavailable before the discovery session ended, it will still
+        show up in the returned list.
+
+        Returns:
+            List of BLEDevices that have been discovered.
+
+        """
+        if not self.is_scanning:
+            return None
+
+        await self.suspend_discovery()
+
+        for rule in self.rules:
+            await self.bus.delMatch(rule).asFuture(self.loop)
+        self.rules = []
+
+        # Try to disconnect the System Bus.
+        try:
+            self.bus.disconnect()
+        except Exception as e:
+            logger.error("Attempt to disconnect system bus failed: {0}".format(e))
+
+        try:
+            self.reactor.stop()
+        except ReactorNotRunning:
+            # I think Bleak will always end up here, but I want to call stop just in case...
+            pass
+        discovered_devices = []
+
+        for path, props in self.devices.items():
+            discovered = _parse_device(path, props)
+            if discovered:
+                discovered_devices.append(discovered)
+
+        self.bus = None
+        self.is_scanning = False
+
+        return discovered_devices
+
+    def _parse_msg(self, message):
+        if message.member == "InterfacesAdded":
+            msg_path = message.body[0]
+
+            if msg_path == '/org/bluez':
+                return
+
+            # When Bluez crashes it will be restarted by systemd and trigger an
+            # InterfacesAdded message
+            if msg_path == ('/org/bluez/%s' % self.device):
+                self.loop.create_task(self._restart_discovery())
+                return
+
+            try:
+                device_interface = message.body[1].get(defs.DEVICE_INTERFACE, {})
+            except Exception as e:
+                raise e
+
+            self.devices[msg_path] = (
+                {**self.devices[msg_path], **device_interface}
+                if msg_path in self.devices
+                else device_interface
+            )
+
+            dev = _parse_device(msg_path, self.devices[msg_path])
+            if dev and self.callback:
+                self.callback(dev)
+
+        elif message.member == "PropertiesChanged":
+            iface, changed, invalidated = message.body
+            if iface != defs.DEVICE_INTERFACE:
+                return
+
+            msg_path = message.path
+            # the PropertiesChanged signal only sends changed properties, so we
+            # need to get remaining properties from cached_devices. However, we
+            # don't want to add all cached_devices to the devices dict since
+            # they may not actually be nearby or powered on.
+            if msg_path not in self.devices and msg_path in self.cached_devices:
+                self.devices[msg_path] = self.cached_devices[msg_path]
+            self.devices[msg_path] = (
+                {**self.devices[msg_path], **changed} if msg_path in self.devices else changed
+            )
+
+            dev = _parse_device(msg_path, self.devices[msg_path])
+            if dev and self.callback:
+                self.callback(dev)
+
+        elif (
+            message.member == "InterfacesRemoved"
+            and message.body[1][0] == defs.BATTERY_INTERFACE
+        ):
+            logger.info(
+                "{0}, {1} ({2}): {3}".format(
+                    message.member, message.interface, message.path, message.body
+                )
+            )
+            return
+        else:
+            msg_path = message.path
+            logger.info(
+                "{0}, {1} ({2}): {3}".format(
+                    message.member, message.interface, message.path, message.body
+                )
+            )
+
+        logger.info(
+            "{0}, {1} ({2} dBm), Object Path: {3}".format(
+                *_device_info(msg_path, self.devices.get(msg_path))
+            )
+        )
+
+
+async def discover_async(callback: Callable[[BLEDevice], None]=None,
+                         loop=None, **kwargs):
+    """Start discovering asynchronously nearby Bluetooth Low Energy devices.
+    The filters are applied and the callback registered with the object is
+    called every time a new device appears or the properties of an already
+    discovered device changes. This might happen frequently, since a change in
+    the RSSI value is considered a property change.
+
+    Args:
+        callback (Callable[[bleak.BLEDevice], None]): called for each discovered device.
+        loop (asyncio.AbstractEventLoop): Optional event loop to use.
+
+    Keyword Args:
+        device (str): Bluetooth device to use for discovery.
+        filters (dict): A dict of filters to be applied on discovery.
+
+    Returns:
+        A discovery state object that can be used to stop the discovery again.
+
+    """
+    device = kwargs.get("device", "hci0")
+
+    # Discovery filters
+    filters = kwargs.get("filters", {})
+
+    disco = AsyncDiscovery(callback, loop, device, filters)
+    await disco._start_discovery()
+
+    return disco
 
 
 async def discover(timeout=5.0, loop=None, **kwargs):
@@ -75,156 +408,7 @@ async def discover(timeout=5.0, loop=None, **kwargs):
         of nearby devices.
 
     """
-    device = kwargs.get("device", "hci0")
-    loop = loop if loop else asyncio.get_event_loop()
-    cached_devices = {}
-    devices = {}
-    rules = list()
 
-    # Discovery filters
-    filters = kwargs.get("filters", {})
-    filters["Transport"] = "le"
-
-    def parse_msg(message):
-        if message.member == "InterfacesAdded":
-            msg_path = message.body[0]
-            try:
-                device_interface = message.body[1].get("org.bluez.Device1", {})
-            except Exception as e:
-                raise e
-            devices[msg_path] = (
-                {**devices[msg_path], **device_interface}
-                if msg_path in devices
-                else device_interface
-            )
-        elif message.member == "PropertiesChanged":
-            iface, changed, invalidated = message.body
-            if iface != defs.DEVICE_INTERFACE:
-                return
-
-            msg_path = message.path
-            # the PropertiesChanged signal only sends changed properties, so we
-            # need to get remaining properties from cached_devices. However, we
-            # don't want to add all cached_devices to the devices dict since
-            # they may not actually be nearby or powered on.
-            if msg_path not in devices and msg_path in cached_devices:
-                devices[msg_path] = cached_devices[msg_path]
-            devices[msg_path] = (
-                {**devices[msg_path], **changed} if msg_path in devices else changed
-            )
-        elif (
-            message.member == "InterfacesRemoved"
-            and message.body[1][0] == defs.BATTERY_INTERFACE
-        ):
-            logger.info(
-                "{0}, {1} ({2}): {3}".format(
-                    message.member, message.interface, message.path, message.body
-                )
-            )
-            return
-        else:
-            msg_path = message.path
-            logger.info(
-                "{0}, {1} ({2}): {3}".format(
-                    message.member, message.interface, message.path, message.body
-                )
-            )
-
-        logger.info(
-            "{0}, {1} ({2} dBm), Object Path: {3}".format(
-                *_device_info(msg_path, devices.get(msg_path))
-            )
-        )
-
-    bus = await client.connect(reactor, "system").asFuture(loop)
-
-    # Add signal listeners
-    rules.append(
-        await bus.addMatch(
-            parse_msg,
-            interface="org.freedesktop.DBus.ObjectManager",
-            member="InterfacesAdded",
-        ).asFuture(loop)
-    )
-
-    rules.append(
-        await bus.addMatch(
-            parse_msg,
-            interface="org.freedesktop.DBus.ObjectManager",
-            member="InterfacesRemoved",
-        ).asFuture(loop)
-    )
-
-    rules.append(
-        await bus.addMatch(
-            parse_msg,
-            interface="org.freedesktop.DBus.Properties",
-            member="PropertiesChanged",
-        ).asFuture(loop)
-    )
-
-    # Find the HCI device to use for scanning and get cached device properties
-    objects = await bus.callRemote(
-        "/",
-        "GetManagedObjects",
-        interface=defs.OBJECT_MANAGER_INTERFACE,
-        destination=defs.BLUEZ_SERVICE,
-    ).asFuture(loop)
-    adapter_path, interface = _filter_on_adapter(objects, device)
-    cached_devices = dict(_filter_on_device(objects))
-
-    # Running Discovery loop.
-    await bus.callRemote(
-        adapter_path,
-        "SetDiscoveryFilter",
-        interface="org.bluez.Adapter1",
-        destination="org.bluez",
-        signature="a{sv}",
-        body=[filters],
-    ).asFuture(loop)
-
-    await bus.callRemote(
-        adapter_path,
-        "StartDiscovery",
-        interface="org.bluez.Adapter1",
-        destination="org.bluez",
-    ).asFuture(loop)
-
+    disco = await discover_async(None, loop, **kwargs)
     await asyncio.sleep(timeout)
-
-    await bus.callRemote(
-        adapter_path,
-        "StopDiscovery",
-        interface="org.bluez.Adapter1",
-        destination="org.bluez",
-    ).asFuture(loop)
-
-    # Reduce output.
-    discovered_devices = []
-    for path, props in devices.items():
-        if not props:
-            logger.debug(
-                "Disregarding %s since no properties could be obtained." % path
-            )
-            continue
-        name, address, _, path = _device_info(path, props)
-        if address is None:
-            continue
-        uuids = props.get("UUIDs", [])
-        manufacturer_data = props.get("ManufacturerData", {})
-        discovered_devices.append(
-            BLEDevice(
-                address,
-                name,
-                {"path": path, "props": props},
-                uuids=uuids,
-                manufacturer_data=manufacturer_data,
-            )
-        )
-
-    for rule in rules:
-        await bus.delMatch(rule).asFuture(loop)
-
-    bus.disconnect()
-
-    return discovered_devices
+    return await disco.stop_discovery()
