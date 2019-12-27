@@ -7,9 +7,10 @@ Created on 2017-12-05 by hbldh <henrik.blidh@nedomkull.com>
 
 import logging
 import asyncio
+import uuid
 from asyncio.events import AbstractEventLoop
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, Union
 
 from bleak.exc import BleakError, BleakDotNetTaskError
 from bleak.backends.client import BaseBleakClient
@@ -273,7 +274,7 @@ class BleakClientDotNet(BaseBleakClient):
 
     # I/O methods
 
-    async def read_gatt_char(self, _uuid: str, use_cached=False, **kwargs) -> bytearray:
+    async def read_gatt_char(self, _uuid: Union[str, uuid.UUID], use_cached=False, **kwargs) -> bytearray:
         """Perform read operation on the specified GATT characteristic.
 
         Args:
@@ -359,7 +360,7 @@ class BleakClientDotNet(BaseBleakClient):
         return value
 
     async def write_gatt_char(
-        self, _uuid: str, data: bytearray, response: bool = False
+        self, _uuid: Union[str, uuid.UUID], data: bytearray, response: bool = False
     ) -> None:
         """Perform a write operation of the specified GATT characteristic.
 
@@ -408,7 +409,7 @@ class BleakClientDotNet(BaseBleakClient):
         """
         descriptor = self.services.get_descriptor(handle)
         if not descriptor:
-            raise BleakError("Descriptor {0} was not found!".format(handle))
+            raise BleakError("Descriptor with handle {0} was not found!".format(handle))
 
         writer = DataWriter()
         writer.WriteBytes(Array[Byte](data))
@@ -429,7 +430,7 @@ class BleakClientDotNet(BaseBleakClient):
             )
 
     async def start_notify(
-        self, _uuid: str, callback: Callable[[str, Any], Any], **kwargs
+        self, _uuid: Union[str, uuid.UUID], callback: Callable[[str, Any], Any], **kwargs
     ) -> None:
         """Activate notifications/indications on a characteristic.
 
@@ -525,7 +526,7 @@ class BleakClientDotNet(BaseBleakClient):
             return GattCommunicationStatus.AccessDenied
         return status
 
-    async def stop_notify(self, _uuid: str) -> None:
+    async def stop_notify(self, _uuid: Union[str, uuid.UUID]) -> None:
         """Deactivate notification/indication on a specified characteristic.
 
         Args:
@@ -533,6 +534,8 @@ class BleakClientDotNet(BaseBleakClient):
 
         """
         characteristic = self.services.get_characteristic(str(_uuid))
+        if not characteristic:
+            raise BleakError("Characteristic {0} was not found!".format(_uuid))
 
         status = await wrap_IAsyncOperation(
             IAsyncOperation[GattCommunicationStatus](
