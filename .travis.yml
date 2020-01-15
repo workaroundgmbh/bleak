@@ -1,0 +1,26 @@
+# Configurations
+dist: bionic
+language: python
+python:
+  - "3.6"
+
+install:
+  - pip install wheel
+  - pip install -r requirements_dev.txt
+
+script:
+  # Ensure the 'dist' folder is empty before building the new Python package
+  - rm -Rf dist
+  - python3 setup.py bdist_wheel
+
+before_deploy:
+  - pyenv global 3.6
+  - pip install cloudsmith-cli
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: cloudsmith push python --republish proglove/gateway dist/bleak_proglove-*.whl
+  on:
+    branch: proglove
+
