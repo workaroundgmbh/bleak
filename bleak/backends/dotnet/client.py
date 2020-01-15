@@ -15,9 +15,7 @@ from bleak.exc import BleakError, BleakDotNetTaskError
 from bleak.backends.client import BaseBleakClient
 from bleak.backends.dotnet.discovery import discover
 from bleak.backends.dotnet.utils import (
-    wrap_Task,
     wrap_IAsyncOperation,
-    IAsyncOperationAwaitable,
 )
 from bleak.backends.service import BleakGATTServiceCollection
 from bleak.backends.dotnet.service import BleakGATTServiceDotNet
@@ -40,11 +38,9 @@ from Windows.Devices.Bluetooth import (
     BluetoothAddressType,
 )
 from Windows.Devices.Bluetooth.GenericAttributeProfile import (
-    GattDeviceService,
     GattDeviceServicesResult,
     GattCharacteristic,
     GattCharacteristicsResult,
-    GattDescriptor,
     GattDescriptorsResult,
     GattCommunicationStatus,
     GattReadResult,
