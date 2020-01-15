@@ -83,7 +83,7 @@ class CentralManagerDelegate(NSObject):
     @property
     def isConnected(self) -> bool:
         # Validate this
-        return self.connected_peripheral != None
+        return self.connected_peripheral is not None
 
     async def is_ready(self):
         """is_ready allows an asynchronous way to wait and ensure the
