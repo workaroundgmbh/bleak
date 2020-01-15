@@ -29,8 +29,6 @@ async def discover(
     """
     loop = loop if loop else asyncio.get_event_loop()
 
-    devices = {}
-
     if not cbapp.central_manager_delegate.enabled:
         raise BleakError("Bluetooth device is turned off")
 

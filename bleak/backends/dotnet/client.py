@@ -141,7 +141,7 @@ class BleakClientDotNet(BaseBleakClient):
         self._requester.ConnectionStatusChanged += _ConnectionStatusChanged_Handler
 
         # Obtain services, which also leads to connection being established.
-        services = await self.get_services()
+        _ = await self.get_services()
         connected = False
         if self._services_resolved:
             # If services has been resolved, then we assume that we are connected. This is due to
