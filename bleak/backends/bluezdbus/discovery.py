@@ -144,6 +144,7 @@ async def discover(timeout=5.0, loop=None, **kwargs):
             parse_msg,
             interface="org.freedesktop.DBus.ObjectManager",
             member="InterfacesAdded",
+            path_namespace="/org/bluez",
         ).asFuture(loop)
     )
 
@@ -152,6 +153,7 @@ async def discover(timeout=5.0, loop=None, **kwargs):
             parse_msg,
             interface="org.freedesktop.DBus.ObjectManager",
             member="InterfacesRemoved",
+            path_namespace="/org/bluez",
         ).asFuture(loop)
     )
 
@@ -160,6 +162,7 @@ async def discover(timeout=5.0, loop=None, **kwargs):
             parse_msg,
             interface="org.freedesktop.DBus.Properties",
             member="PropertiesChanged",
+            path_namespace="/org/bluez",
         ).asFuture(loop)
     )
 
