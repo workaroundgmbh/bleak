@@ -324,7 +324,12 @@ async def discover(timeout=5.0, loop=None, **kwargs):
         of nearby devices.
 
     """
+    device = kwargs.get("device", "hci0")
 
-    disco = await discover_async(None, loop, **kwargs)
+    # Discovery filters
+    filters = kwargs.get("filters", {})
+
+    discovery = AsyncDiscovery(callback=None, loop=loop, device=device)
+    await discovery.start_discovery(filters)
     await asyncio.sleep(timeout)
-    return await disco.stop_discovery()
+    return await discovery.stop_discovery()
