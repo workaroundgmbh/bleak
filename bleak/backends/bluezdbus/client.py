@@ -180,12 +180,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             )
 
         # Get all services. This means making the actual connection.
-        try:
-            await self.get_services()
-        except BleakError:
-            await self._cleanup_all()
-            raise
-
+        await self.get_services()
         properties = await self._get_device_properties()
         if not properties.get("Connected"):
             await self._cleanup_all()
