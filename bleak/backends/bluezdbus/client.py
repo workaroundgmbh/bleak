@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import functools
 import asyncio
 import os
 import re
@@ -50,6 +51,18 @@ def _get_reactor(loop: AbstractEventLoop):
 
     return _reactors[loop]
 
+def raise_on_bus_not_set(func):
+    """Decorator on methods that require the TxDBus to be present."""
+
+    @functools.wraps(func)
+    def wrapper(self: 'BleakClientBlueZDBus', *args, **kwargs):
+        """Check the the _bus member is instantiated."""
+        if self._bus is None:
+            raise BleakError('bus not set')
+        else:
+            return func(self, *args, **kwargs)
+
+    return wrapper
 
 class BleakClientBlueZDBus(BaseBleakClient):
     """A native Linux Bleak Client
@@ -197,6 +210,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         )
         return True
 
+    @raise_on_bus_not_set
     async def _cleanup_notifications(self) -> None:
         """
         Remove all pending notifications of the client. This method is used to
@@ -217,6 +231,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
                 logger.error("Could not remove notifications on characteristic {0}: {1}".format(_uuid, e))
         self._subscriptions = []
 
+    @raise_on_bus_not_set
     async def _cleanup_dbus_resources(self) -> None:
         """
         Free the resources allocated for both the DBus bus and the Twisted
@@ -246,6 +261,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         await self._cleanup_notifications()
         await self._cleanup_dbus_resources()
 
+    @raise_on_bus_not_set
     async def disconnect(self) -> bool:
         """Disconnect from the specified GATT server.
 
@@ -299,6 +315,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
     # GATT services methods
 
+    @raise_on_bus_not_set
     async def get_services(self) -> BleakGATTServiceCollection:
         """Get all services registered for this GATT server.
 
@@ -372,6 +389,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
     # IO methods
 
+    @raise_on_bus_not_set
     async def read_gatt_char(self, _uuid: Union[str, uuid.UUID], **kwargs) -> bytearray:
         """Perform read operation on the specified GATT characteristic.
 
@@ -438,6 +456,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         )
         return value
 
+    @raise_on_bus_not_set
     async def read_gatt_descriptor(self, handle: int, **kwargs) -> bytearray:
         """Perform read operation on the specified GATT descriptor.
 
@@ -469,6 +488,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         )
         return value
 
+    @raise_on_bus_not_set
     async def write_gatt_char(
         self, _uuid: Union[str, uuid.UUID], data: bytearray, response: bool = False
     ) -> None:
@@ -550,6 +570,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             )
         )
 
+    @raise_on_bus_not_set
     async def write_gatt_descriptor(self, handle: int, data: bytearray) -> None:
         """Perform a write operation on the specified GATT descriptor.
 
@@ -577,6 +598,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             )
         )
 
+    @raise_on_bus_not_set
     async def start_notify(
         self, _uuid: Union[str, uuid.UUID], callback: Callable[[str, Any], Any], **kwargs
     ) -> None:
@@ -643,6 +665,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         self._subscriptions.append(str(_uuid))
 
+    @raise_on_bus_not_set
     async def stop_notify(self, _uuid: Union[str, uuid.UUID]) -> None:
         """Deactivate notification/indication on a specified characteristic.
 
@@ -668,6 +691,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
     # DBUS introspection method for characteristics.
 
+    @raise_on_bus_not_set
     async def get_all_for_characteristic(self, _uuid: Union[str, uuid.UUID]) -> dict:
         """Get all properties for a characteristic.
 
@@ -694,6 +718,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         ).asFuture(self.loop)
         return out
 
+    @raise_on_bus_not_set
     async def _get_device_properties(self, interface=defs.DEVICE_INTERFACE) -> dict:
         """Get properties of the connected device.
 
