@@ -283,6 +283,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
             Boolean representing connection status.
 
         """
+        if self._bus is None:
+            return False
+
         # TODO: Listen to connected property changes.
         return await self._bus.callRemote(
             self._device_path,
