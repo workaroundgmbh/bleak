@@ -2,13 +2,15 @@
 
 import asyncio
 import logging
-from typing import Callable
+import re
+from typing import Callable, List, Any, Dict
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.bluezdbus import defs
 from bleak.backends.bluezdbus.utils import validate_mac_address
 
 from txdbus import client
+from txdbus.error import RemoteError
 from twisted.internet.asyncioreactor import AsyncioSelectorReactor
 from twisted.internet.error import ReactorNotRunning
 
@@ -78,14 +80,24 @@ def _parse_device(path, props):
 class AsyncDiscovery():
 
     def __init__(self, callback: Callable[[BLEDevice], None]=None,
-                 loop=None, device="hci0"):
+                 loop=None, device="hci0", filters: Dict[str, Any] = None):
         """State keeper to discover nearby Bluetooth Low Energy devices and get
         a call for each discovered device in an asynchronous way.
+
+        For possible values for `filters`, see the parameters to the
+        ``SetDiscoveryFilter`` method in the `BlueZ docs
+        <https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/adapter-api.txt?h=5.48&id=0d1e3b9c5754022c779da129025d493a198d49cf>`_
+
+        The filters are applied and the callback registered with the object is
+        called every time a new device appears or the properties of an already
+        discovered device changes. This might happen frequently, since a change
+        in the RSSI value is considered a property change.
 
         Args:
             callback (Callable[[bleak.BLEDevice], None]): called for each discovered device.
             loop (asyncio.AbstractEventLoop): Optional event loop to use.
             device (str): Bluetooth device to use for discovery.
+            filters (dict): A dict of filters to be applied on discovery.
 
         """
         self.callback = callback
@@ -96,39 +108,44 @@ class AsyncDiscovery():
         self.bus = None
         self.devices = {}
         self.adapter_path = ""
+        self.filters = filters
 
         self.reactor = AsyncioSelectorReactor(loop)
 
-    async def _start_discovery(self, filters=None):
-        """Start discovering of nearby BLE devices.
+    async def _restart_discovery(self, delay=0):
+        """Stop and start the discovery."""
+        await self.stop_discovery()
 
-        For possible values for `filters`, see the parameters to the
-        ``SetDiscoveryFilter`` method in the `BlueZ docs
-        <https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/adapter-api.txt?h=5.48&id=0d1e3b9c5754022c779da129025d493a198d49cf>`_
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+        await self._start_discovery()
+
+    async def _start_discovery(self):
+        """Start discovering of nearby BLE devices.
 
         The ``Transport`` parameter is always set to ``le`` by default in Bleak.
 
-        The filters are applied and the callback registered with the object is
-        called every time a new device appears or the properties of an already
-        discovered device changes. This might happen frequently, since a change
-        in the RSSI value is considered a property change.
-
-        Args:
-            filters (dict): A dict of filters to be applied on discovery.
-
         """
-        if self.rules:
+        if self.rules or self.bus is not None:
             # List is not empty, scanning is already in progress.
             return
 
-        if not filters:
-            filters = dict()
+        filters = self.filters if self.filters is not None else dict()
 
         filters["Transport"] = "le"
 
         self.bus = await client.connect(self.reactor, "system").asFuture(self.loop)
 
         # Add signal listeners
+        self.rules.append(
+            await self.bus.addMatch(
+                self._bluez_restart_callback,
+                interface="org.freedesktop.DBus.ObjectManager",
+                member="InterfacesAdded",
+                path='/'
+            ).asFuture(self.loop)
+        )
         self.rules.append(
             await self.bus.addMatch(
                 self._parse_msg,
@@ -161,7 +178,8 @@ class AsyncDiscovery():
             interface=defs.OBJECT_MANAGER_INTERFACE,
             destination=defs.BLUEZ_SERVICE,
         ).asFuture(self.loop)
-        self.adapter_path, interface = _filter_on_adapter(objects, self.device)
+        self.adapter_path, interface = _filter_on_adapter(objects,
+                                                          self.device)
         self.cached_devices = dict(_filter_on_device(objects))
 
         await self.bus.callRemote(
@@ -190,20 +208,23 @@ class AsyncDiscovery():
             List of BLEDevices that have been discovered.
 
         """
-        if not self.rules:
+        if not self.rules or self.bus is None:
             # Discovery is currently not active.
             return None
 
-        await self.bus.callRemote(
-            self.adapter_path,
-            "StopDiscovery",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
-        ).asFuture(self.loop)
+        try:
+            await self.bus.callRemote(
+                self.adapter_path,
+                "StopDiscovery",
+                interface="org.bluez.Adapter1",
+                destination="org.bluez",
+            ).asFuture(self.loop)
+        except RemoteError as e:
+            logger.error("Stop discovery failed: {0}".format(e))
 
         for rule in self.rules:
             await self.bus.delMatch(rule).asFuture(self.loop)
-            self.rules.remove(rule)
+        self.rules = []
 
         # Try to disconnect the System Bus.
         try:
@@ -223,7 +244,18 @@ class AsyncDiscovery():
             if discovered:
                 discovered_devices.append(discovered)
 
+        self.bus = None
+
         return discovered_devices
+
+    def _bluez_restart_callback(self, message):
+        # When Bluez crashes it will be restarted by systemd and trigger an
+        # InterfacesAdded message
+        if message.member == "InterfacesAdded":
+            msg_path = message.body[0]
+
+            if msg_path == ('/org/bluez/%s' % self.device):
+                self.loop.create_task(self._restart_discovery(delay=5))
 
     def _parse_msg(self, message):
         if message.member == "InterfacesAdded":
@@ -312,8 +344,8 @@ async def discover_async(callback: Callable[[BLEDevice], None]=None,
     # Discovery filters
     filters = kwargs.get("filters", {})
 
-    disco = AsyncDiscovery(callback, loop, device)
-    await disco._start_discovery(filters)
+    disco = AsyncDiscovery(callback, loop, device, filters)
+    await disco._start_discovery()
 
     return disco
 
