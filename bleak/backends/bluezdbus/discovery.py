@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def _filter_on_adapter(objs, pattern="hci0"):
     for path, interfaces in objs.items():
-        adapter = interfaces.get("org.bluez.Adapter1")
+        adapter = interfaces.get(defs.ADAPTER_INTERFACE)
         if adapter is None:
             continue
 
@@ -30,7 +30,7 @@ def _filter_on_adapter(objs, pattern="hci0"):
 
 def _filter_on_device(objs):
     for path, interfaces in objs.items():
-        device = interfaces.get("org.bluez.Device1")
+        device = interfaces.get(defs.DEVICE_INTERFACE)
         if device is None:
             continue
 
@@ -115,20 +115,20 @@ class AsyncDiscovery():
         await self.bus.callRemote(
             self.adapter_path,
             "Set",
-            interface="org.freedesktop.DBus.Properties",
-            destination="org.bluez",
+            interface=defs.PROPERTIES_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
             signature="ssv",
-            body=["org.bluez.Adapter1", 'Powered', False],
+            body=[defs.ADAPTER_INTERFACE, 'Powered', False],
         ).asFuture(self.loop)
 
     async def _power_on(self):
         await self.bus.callRemote(
             self.adapter_path,
             "Set",
-            interface="org.freedesktop.DBus.Properties",
-            destination="org.bluez",
+            interface=defs.PROPERTIES_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
             signature="ssv",
-            body=["org.bluez.Adapter1", 'Powered', True],
+            body=[defs.ADAPTER_INTERFACE, 'Powered', True],
         ).asFuture(self.loop)
 
     async def _restart_discovery(self):
@@ -164,7 +164,7 @@ class AsyncDiscovery():
         self.rules.append(
             await self.bus.addMatch(
                 self._bluez_restart_callback,
-                interface="org.freedesktop.DBus.ObjectManager",
+                interface=defs.OBJECT_MANAGER_INTERFACE,
                 member="InterfacesAdded",
                 path='/'
             ).asFuture(self.loop)
@@ -172,7 +172,7 @@ class AsyncDiscovery():
         self.rules.append(
             await self.bus.addMatch(
                 self._parse_msg,
-                interface="org.freedesktop.DBus.ObjectManager",
+                interface=defs.OBJECT_MANAGER_INTERFACE,
                 member="InterfacesAdded",
                 path_namespace="/org/bluez",
             ).asFuture(self.loop)
@@ -180,7 +180,7 @@ class AsyncDiscovery():
         self.rules.append(
             await self.bus.addMatch(
                 self._parse_msg,
-                interface="org.freedesktop.DBus.ObjectManager",
+                interface=defs.OBJECT_MANAGER_INTERFACE,
                 member="InterfacesRemoved",
                 path_namespace="/org/bluez",
             ).asFuture(self.loop)
@@ -188,7 +188,7 @@ class AsyncDiscovery():
         self.rules.append(
             await self.bus.addMatch(
                 self._parse_msg,
-                interface="org.freedesktop.DBus.Properties",
+                interface=defs.PROPERTIES_INTERFACE,
                 member="PropertiesChanged",
                 path_namespace="/org/bluez",
             ).asFuture(self.loop)
@@ -208,16 +208,16 @@ class AsyncDiscovery():
         await self.bus.callRemote(
             self.adapter_path,
             "SetDiscoveryFilter",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
+            interface=defs.ADAPTER_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
             signature="a{sv}",
             body=[filters],
         ).asFuture(self.loop)
         await self.bus.callRemote(
             self.adapter_path,
             "StartDiscovery",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
+            interface=defs.ADAPTER_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
         ).asFuture(self.loop)
 
     async def stop_discovery(self):
@@ -239,8 +239,8 @@ class AsyncDiscovery():
             await self.bus.callRemote(
                 self.adapter_path,
                 "StopDiscovery",
-                interface="org.bluez.Adapter1",
-                destination="org.bluez",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
             ).asFuture(self.loop)
         except RemoteError as e:
             logger.error("Stop discovery failed: {0}".format(e))
@@ -284,7 +284,7 @@ class AsyncDiscovery():
         if message.member == "InterfacesAdded":
             msg_path = message.body[0]
             try:
-                device_interface = message.body[1].get("org.bluez.Device1", {})
+                device_interface = message.body[1].get(defs.DEVICE_INTERFACE, {})
             except Exception as e:
                 raise e
             self.devices[msg_path] = (
