@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import re
 from typing import Callable, List, Any, Dict
 
 from bleak.backends.device import BLEDevice
@@ -112,13 +111,37 @@ class AsyncDiscovery():
 
         self.reactor = AsyncioSelectorReactor(loop)
 
-    async def _restart_discovery(self, delay=0):
+    async def _power_off(self):
+        await self.bus.callRemote(
+            self.adapter_path,
+            "Set",
+            interface="org.freedesktop.DBus.Properties",
+            destination="org.bluez",
+            signature="ssv",
+            body=["org.bluez.Adapter1", 'Powered', False],
+        ).asFuture(self.loop)
+
+    async def _power_on(self):
+        await self.bus.callRemote(
+            self.adapter_path,
+            "Set",
+            interface="org.freedesktop.DBus.Properties",
+            destination="org.bluez",
+            signature="ssv",
+            body=["org.bluez.Adapter1", 'Powered', True],
+        ).asFuture(self.loop)
+
+    async def _restart_discovery(self):
         """Stop and start the discovery."""
+
+        await asyncio.sleep(1)
+        await self._power_off()
+        await asyncio.sleep(1)
+        await self._power_on()
+        await asyncio.sleep(1)
+
         await self.stop_discovery()
-
-        if delay > 0:
-            await asyncio.sleep(delay)
-
+        await asyncio.sleep(3)
         await self._start_discovery()
 
     async def _start_discovery(self):
@@ -255,7 +278,7 @@ class AsyncDiscovery():
             msg_path = message.body[0]
 
             if msg_path == ('/org/bluez/%s' % self.device):
-                self.loop.create_task(self._restart_discovery(delay=5))
+                self.loop.create_task(self._restart_discovery())
 
     def _parse_msg(self, message):
         if message.member == "InterfacesAdded":
