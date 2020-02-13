@@ -163,18 +163,10 @@ class AsyncDiscovery():
         # Add signal listeners
         self.rules.append(
             await self.bus.addMatch(
-                self._bluez_restart_callback,
-                interface=defs.OBJECT_MANAGER_INTERFACE,
-                member="InterfacesAdded",
-                path='/'
-            ).asFuture(self.loop)
-        )
-        self.rules.append(
-            await self.bus.addMatch(
                 self._parse_msg,
                 interface=defs.OBJECT_MANAGER_INTERFACE,
                 member="InterfacesAdded",
-                path_namespace="/org/bluez",
+                path='/'
             ).asFuture(self.loop)
         )
         self.rules.append(
@@ -271,22 +263,24 @@ class AsyncDiscovery():
 
         return discovered_devices
 
-    def _bluez_restart_callback(self, message):
-        # When Bluez crashes it will be restarted by systemd and trigger an
-        # InterfacesAdded message
-        if message.member == "InterfacesAdded":
-            msg_path = message.body[0]
-
-            if msg_path == ('/org/bluez/%s' % self.device):
-                self.loop.create_task(self._restart_discovery())
-
     def _parse_msg(self, message):
         if message.member == "InterfacesAdded":
             msg_path = message.body[0]
+
+            if msg_path == '/org/bluez':
+                return
+
+            # When Bluez crashes it will be restarted by systemd and trigger an
+            # InterfacesAdded message
+            if msg_path == ('/org/bluez/%s' % self.device):
+                self.loop.create_task(self._restart_discovery())
+                return
+
             try:
                 device_interface = message.body[1].get(defs.DEVICE_INTERFACE, {})
             except Exception as e:
                 raise e
+
             self.devices[msg_path] = (
                 {**self.devices[msg_path], **device_interface}
                 if msg_path in self.devices
