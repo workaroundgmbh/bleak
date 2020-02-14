@@ -86,7 +86,7 @@ def _get_extra_dev_string() -> str:
 
 
     if num_commits > 0:
-        return '.dev%u' % num_commits
+        return '-%u' % num_commits
 
     return ''
 
