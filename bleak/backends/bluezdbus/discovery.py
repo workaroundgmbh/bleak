@@ -108,6 +108,7 @@ class AsyncDiscovery():
         self.devices = {}
         self.adapter_path = ""
         self.filters = filters
+        self.is_scanning = False
 
         self.reactor = AsyncioSelectorReactor(loop)
 
@@ -150,8 +151,8 @@ class AsyncDiscovery():
         The ``Transport`` parameter is always set to ``le`` by default in Bleak.
 
         """
-        if self.rules or self.bus is not None:
-            # List is not empty, scanning is already in progress.
+        if self.is_scanning:
+            # Scanning already in progress. No need to restart.
             return
 
         filters = self.filters if self.filters is not None else dict()
@@ -223,8 +224,7 @@ class AsyncDiscovery():
             List of BLEDevices that have been discovered.
 
         """
-        if not self.rules or self.bus is None:
-            # Discovery is currently not active.
+        if not self.is_scanning:
             return None
 
         try:
@@ -260,6 +260,7 @@ class AsyncDiscovery():
                 discovered_devices.append(discovered)
 
         self.bus = None
+        self.is_scanning = False
 
         return discovered_devices
 
