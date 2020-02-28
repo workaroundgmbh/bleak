@@ -107,8 +107,10 @@ class AsyncDiscovery():
         self.bus = None
         self.devices = {}
         self.adapter_path = ""
-        self.filters = filters
         self.is_scanning = False
+
+        self.filters = filters if filters is not None else dict()
+        self.filters["Transport"] = "le"
 
         self.reactor = AsyncioSelectorReactor(loop)
 
@@ -155,10 +157,6 @@ class AsyncDiscovery():
             # Scanning already in progress. No need to restart.
             return
 
-        filters = self.filters if self.filters is not None else dict()
-
-        filters["Transport"] = "le"
-
         self.bus = await client.connect(self.reactor, "system").asFuture(self.loop)
 
         # Add signal listeners
@@ -198,20 +196,48 @@ class AsyncDiscovery():
                                                           self.device)
         self.cached_devices = dict(_filter_on_device(objects))
 
-        await self.bus.callRemote(
-            self.adapter_path,
-            "SetDiscoveryFilter",
-            interface=defs.ADAPTER_INTERFACE,
-            destination=defs.BLUEZ_SERVICE,
-            signature="a{sv}",
-            body=[filters],
-        ).asFuture(self.loop)
-        await self.bus.callRemote(
-            self.adapter_path,
-            "StartDiscovery",
-            interface=defs.ADAPTER_INTERFACE,
-            destination=defs.BLUEZ_SERVICE,
-        ).asFuture(self.loop)
+        await self.resume_discovery()
+
+    async def suspend_discovery(self):
+        if not self.is_scanning:
+            return
+
+        try:
+            await self.bus.callRemote(
+                self.adapter_path,
+                "StopDiscovery",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+            ).asFuture(self.loop)
+        except RemoteError as e:
+            logger.error("Stop discovery failed: {0}".format(e))
+
+        self.is_scanning = False
+
+    async def resume_discovery(self):
+        if self.is_scanning:
+            return
+
+        try:
+            await self.bus.callRemote(
+                self.adapter_path,
+                "SetDiscoveryFilter",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+                signature="a{sv}",
+                body=[self.filters],
+            ).asFuture(self.loop)
+            await self.bus.callRemote(
+                self.adapter_path,
+                "StartDiscovery",
+                interface=defs.ADAPTER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+            ).asFuture(self.loop)
+        except RemoteError as e:
+            logger.error("Stop discovery failed: {0}".format(e))
+
+        self.is_scanning = True
+
 
     async def stop_discovery(self):
         """
@@ -227,15 +253,7 @@ class AsyncDiscovery():
         if not self.is_scanning:
             return None
 
-        try:
-            await self.bus.callRemote(
-                self.adapter_path,
-                "StopDiscovery",
-                interface=defs.ADAPTER_INTERFACE,
-                destination=defs.BLUEZ_SERVICE,
-            ).asFuture(self.loop)
-        except RemoteError as e:
-            logger.error("Stop discovery failed: {0}".format(e))
+        await self.suspend_discovery()
 
         for rule in self.rules:
             await self.bus.delMatch(rule).asFuture(self.loop)
