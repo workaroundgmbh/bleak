@@ -136,6 +136,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         Keyword Args:
             timeout (float): Timeout for required ``discover`` call. Defaults to 2.0.
+            skip_discovery (bool): flag to skip the service discovery.
 
         Returns:
             Boolean representing connection status.
@@ -145,6 +146,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
         # A Discover must have been run before connecting to any devices. Do a quick one here
         # to ensure that it has been done.
         timeout = kwargs.get("timeout", self._timeout)
+        skip_discovery = kwargs.get("skip_discovery", False)
+
         if timeout > 0:
             await discover(timeout=timeout, device=self.device, loop=self.loop)
 
@@ -191,13 +194,14 @@ class BleakClientBlueZDBus(BaseBleakClient):
             raise BleakError(
                 "Connection to {0} was not successful!".format(self.address)
             )
-
-        # Get all services. This means making the actual connection.
-        try:
-            await self.get_services()
-        except BleakError:
-            await self._cleanup_all()
-            raise
+)
+        if not skip_discovery:
+            # Get all services. This means making the actual connection.
+            try:
+                await self.get_services()
+            except BleakError:
+                await self._cleanup_all()
+                raise
 
         properties = await self._get_device_properties()
         if not properties.get("Connected"):
