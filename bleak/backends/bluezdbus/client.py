@@ -194,7 +194,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             raise BleakError(
                 "Connection to {0} was not successful!".format(self.address)
             )
-)
+
         if not skip_discovery:
             # Get all services. This means making the actual connection.
             try:
