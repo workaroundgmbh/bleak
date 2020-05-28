@@ -8,7 +8,7 @@ Created on 2018-04-23 by hbldh <henrik.blidh@nedomkull.com>
 import abc
 import asyncio
 import uuid
-from typing import Callable, Any, Union
+from typing import Callable, Any, Union, Optional
 
 from bleak.backends.service import BleakGATTServiceCollection
 
@@ -29,6 +29,7 @@ class BaseBleakClient(abc.ABC):
         self._notification_callbacks = {}
 
         self._timeout = kwargs.get("timeout", 2.0)
+        self._mtu: Optional[int] = None
 
     def __str__(self):
         return "{0}, {1}".format(self.__class__.__name__, self.address)
@@ -48,6 +49,16 @@ class BaseBleakClient(abc.ABC):
         await self.disconnect()
 
     # Connectivity methods
+
+    @abc.abstractmethod
+    async def get_mtu(self) -> Optional[int]:
+        """Get the exchanged MTU value in bytes.
+
+        Returns:
+            The exchanged MTU value or None on error.
+        """
+
+        raise NotImplementedError()
 
     @abc.abstractmethod
     async def set_disconnected_callback(

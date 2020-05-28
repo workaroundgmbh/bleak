@@ -9,7 +9,7 @@ import uuid
 from asyncio import Future
 from asyncio.events import AbstractEventLoop
 from functools import wraps, partial
-from typing import Callable, Any, Union
+from typing import Callable, Any, Union, Optional
 
 from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakError
@@ -491,6 +491,35 @@ class BleakClientBlueZDBus(BaseBleakClient):
             "Read Descriptor {0} | {1}: {2}".format(handle, descriptor.path, value)
         )
         return value
+
+    @raise_on_bus_not_set
+    async def get_mtu(self) -> Optional[int]:
+        """Get the exchanged MTU value in bytes.
+
+        This relies on the AcquireWrite call that returns a socket to write
+        to and the exchanged MTU [1].
+
+        # https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/gatt-api.txt#n115
+
+        Returns:
+            The exchanged MTU value or None on error.
+        """
+        if self._mtu is None:
+            for char in self.services.characteristics.values():
+                if "write-without-response" in char.properties:
+                    fd, self._mtu = await self._bus.callRemote(
+                        char.path,
+                        "AcquireWrite",
+                        interface=defs.GATT_CHARACTERISTIC_INTERFACE,
+                        destination=defs.BLUEZ_SERVICE,
+                        signature="a{sv}",
+                        body=[{}],
+                        returnSignature="hq",
+                    ).asFuture(self.loop)
+                    os.close(fd)
+                    break
+
+        return self._mtu
 
     @raise_on_bus_not_set
     async def write_gatt_char(
