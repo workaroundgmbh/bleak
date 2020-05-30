@@ -15,7 +15,7 @@ from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakError
 from bleak.backends.client import BaseBleakClient
 from bleak.backends.bluezdbus import defs, signals, utils
-from bleak.backends.bluezdbus.discovery import discover
+from bleak.backends.bluezdbus.discovery import discover, filter_on_adapter
 from bleak.backends.bluezdbus.utils import get_device_object_path, get_managed_objects
 from bleak.backends.bluezdbus.service import BleakGATTServiceBlueZDBus
 from bleak.backends.bluezdbus.characteristic import BleakGATTCharacteristicBlueZDBus
