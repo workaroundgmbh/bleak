@@ -137,6 +137,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         Keyword Args:
             timeout (float): Timeout for required ``discover`` call. Defaults to 2.0.
             skip_discovery (bool): flag to skip the service discovery.
+            pair_jw (bool): Enforce pairing with Just Works method.
 
         Returns:
             Boolean representing connection status.
@@ -147,6 +148,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         # to ensure that it has been done.
         timeout = kwargs.get("timeout", self._timeout)
         skip_discovery = kwargs.get("skip_discovery", False)
+        pair_jw = kwargs.get("pair_jw", False)
 
         if timeout > 0:
             await discover(timeout=timeout, device=self.device, loop=self.loop)
@@ -208,6 +210,29 @@ class BleakClientBlueZDBus(BaseBleakClient):
             await self._cleanup_all()
             raise BleakError("Connection failed!")
 
+        if pair_jw:
+            logger.debug(
+                "Pairing with BLE device @ {0} with {1}".format(self.address, self.device)
+            )
+            try:
+                await self._bus.callRemote(
+                    self._device_path,
+                    "Pair",
+                    interface="org.bluez.Device1",
+                    destination="org.bluez",
+                ).asFuture(self.loop)
+            except RemoteError as e:
+                await self._cleanup_all()
+                raise BleakError(str(e))
+
+            if await self.is_paired():
+                logger.debug("Pairing successful.")
+            else:
+                await self._cleanup_all()
+                raise BleakError(
+                    "Pairing to {0} was not successful!".format(self.address)
+                )
+
         await self._bus.delMatch(rule_id).asFuture(self.loop)
         self._rules["PropChanged"] = await signals.listen_properties_changed(
             self._bus, self.loop, self._properties_changed_callback
@@ -241,6 +266,26 @@ class BleakClientBlueZDBus(BaseBleakClient):
         Free the resources allocated for both the DBus bus and the Twisted
         reactor. Use this method upon final disconnection.
         """
+        if await self.is_paired():
+            objects = await self._bus.callRemote(
+                "/",
+                "GetManagedObjects",
+                interface=defs.OBJECT_MANAGER_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+            ).asFuture(self.loop)
+            adapter_path, _ = filter_on_adapter(objects, self.device)
+            try:
+                await self._bus.callRemote(
+                    adapter_path,
+                    "RemoveDevice",
+                    interface=defs.ADAPTER_INTERFACE,
+                    destination=defs.BLUEZ_SERVICE,
+                    signature="o",
+                    body=[self._device_path],
+                ).asFuture(self.loop)
+            except RemoteError as e:
+                logger.error("Removing Pairing information failed: {0}".format(e))
+
         # Try to disconnect the System Bus.
         try:
             self._bus.disconnect()
@@ -314,6 +359,26 @@ class BleakClientBlueZDBus(BaseBleakClient):
             destination=defs.BLUEZ_SERVICE,
             signature="ss",
             body=[defs.DEVICE_INTERFACE, "Connected"],
+            returnSignature="v",
+        ).asFuture(self.loop)
+
+    async def is_paired(self) -> bool:
+        """Check pairing status between this client and the server.
+
+        Returns:
+            Boolean representing pairing status.
+
+        """
+        if self._bus is None:
+            return False
+
+        return await self._bus.callRemote(
+            self._device_path,
+            "Get",
+            interface=defs.PROPERTIES_INTERFACE,
+            destination=defs.BLUEZ_SERVICE,
+            signature="ss",
+            body=[defs.DEVICE_INTERFACE, "Paired"],
             returnSignature="v",
         ).asFuture(self.loop)
 
