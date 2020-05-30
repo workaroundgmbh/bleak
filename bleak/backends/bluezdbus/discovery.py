@@ -16,7 +16,7 @@ from twisted.internet.error import ReactorNotRunning
 logger = logging.getLogger(__name__)
 
 
-def _filter_on_adapter(objs, pattern="hci0"):
+def filter_on_adapter(objs, pattern="hci0"):
     for path, interfaces in objs.items():
         adapter = interfaces.get(defs.ADAPTER_INTERFACE)
         if adapter is None:
@@ -192,7 +192,7 @@ class AsyncDiscovery():
             interface=defs.OBJECT_MANAGER_INTERFACE,
             destination=defs.BLUEZ_SERVICE,
         ).asFuture(self.loop)
-        self.adapter_path, interface = _filter_on_adapter(objects,
+        self.adapter_path, interface = filter_on_adapter(objects,
                                                           self.device)
         self.cached_devices = dict(_filter_on_device(objects))
 
