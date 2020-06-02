@@ -7,7 +7,7 @@ Created on 2019-6-26 by kevincar <kevincarrolldavis@gmail.com>
 import logging
 import uuid
 from asyncio.events import AbstractEventLoop
-from typing import Callable, Any, Union
+from typing import Callable, Any, Union, Optional
 
 from Foundation import NSData, CBUUID
 from CoreBluetooth import CBCharacteristicWriteWithResponse, CBCharacteristicWriteWithoutResponse
@@ -48,6 +48,15 @@ class BleakClientCoreBluetooth(BaseBleakClient):
 
     def __str__(self):
         return "BleakClientCoreBluetooth ({})".format(self.address)
+
+    async def get_mtu(self) -> Optional[int]:
+        """Get the exchanged MTU value in bytes.
+
+        Returns:
+            The exchanged MTU value or None on error.
+        """
+
+        raise NotImplementedError()
 
     async def connect(self, **kwargs) -> bool:
         """Connect to a specified Peripheral
