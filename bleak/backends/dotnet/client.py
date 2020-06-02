@@ -10,7 +10,7 @@ import asyncio
 import uuid
 from asyncio.events import AbstractEventLoop
 from functools import wraps
-from typing import Callable, Any, Union
+from typing import Callable, Any, Union, Optional
 
 from bleak.exc import BleakError, BleakDotNetTaskError
 from bleak.backends.client import BaseBleakClient
@@ -90,6 +90,15 @@ class BleakClientDotNet(BaseBleakClient):
         return "BleakClientDotNet ({0})".format(self.address)
 
     # Connectivity methods
+
+    async def get_mtu(self) -> Optional[int]:
+        """Get the exchanged MTU value in bytes.
+
+        Returns:
+            The exchanged MTU value or None on error.
+        """
+
+        raise NotImplementedError()
 
     async def connect(self, **kwargs) -> bool:
         """Connect to the specified GATT server.
