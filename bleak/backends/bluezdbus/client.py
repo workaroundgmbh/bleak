@@ -26,8 +26,33 @@ from twisted.internet.error import ReactorNotRunning
 from txdbus.client import connect as txdbus_connect
 from txdbus.error import RemoteError
 
+
 logger = logging.getLogger(__name__)
 _reactors = {}
+_cache_enabled: Optional[bool] = None
+
+
+def _is_cache_enabled() -> bool:
+    global _cache_enabled
+
+    if _cache_enabled is not None:
+        return _cache_enabled
+
+    _cache_enabled = True
+    try:
+        with open('/etc/bluetooth/main.conf') as f:
+            for line in f:
+                r = re.match(
+                    r'^\s*Cache\s*=\s*(always|yes|no)\s*$', line)
+                if r is not None:
+                    cache_value = r.group(1)
+                    _cache_enabled = cache_value in ('yes', 'always')
+                    break
+    except (PermissionError, FileNotFoundError):
+        pass
+
+    return _cache_enabled
+
 
 def _get_reactor(loop: AbstractEventLoop):
     """Helper factory to get a Twisted reactor for the provided loop.
