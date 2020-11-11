@@ -291,7 +291,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         Free the resources allocated for both the DBus bus and the Twisted
         reactor. Use this method upon final disconnection.
         """
-        if await self.is_paired():
+        if not _is_cache_enabled() or await self.is_paired():
             objects = await self._bus.callRemote(
                 "/",
                 "GetManagedObjects",
