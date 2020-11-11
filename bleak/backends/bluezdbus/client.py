@@ -799,15 +799,18 @@ class BleakClientBlueZDBus(BaseBleakClient):
         characteristic = self.services.get_characteristic(str(_uuid))
         if not characteristic:
             raise BleakError("Characteristic {0} was not found!".format(_uuid))
-        await self._bus.callRemote(
-            characteristic.path,
-            "StopNotify",
-            interface=defs.GATT_CHARACTERISTIC_INTERFACE,
-            destination=defs.BLUEZ_SERVICE,
-            signature="",
-            body=[],
-            returnSignature="",
-        ).asFuture(self.loop)
+
+        if _is_cache_enabled():
+            await self._bus.callRemote(
+                characteristic.path,
+                "StopNotify",
+                interface=defs.GATT_CHARACTERISTIC_INTERFACE,
+                destination=defs.BLUEZ_SERVICE,
+                signature="",
+                body=[],
+                returnSignature="",
+            ).asFuture(self.loop)
+
         self._notification_callbacks.pop(characteristic.path, None)
 
         self._subscriptions.remove(str(_uuid))
