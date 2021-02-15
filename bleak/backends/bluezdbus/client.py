@@ -194,7 +194,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             )
             if iface == is_resolved:
                 logger.info("Services resolved.")
-                self.services_resolved = True
+                self._services_resolved = True
 
         rule_id = await signals.listen_properties_changed(
             self._bus, self.loop, _services_resolved_callback
