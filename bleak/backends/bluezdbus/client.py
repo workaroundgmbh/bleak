@@ -222,13 +222,12 @@ class BleakClientBlueZDBus(BaseBleakClient):
                 "Connection to {0} was not successful!".format(self.address)
             )
 
-        if not skip_discovery:
-            # Get all services. This means making the actual connection.
-            try:
-                await self.get_services()
-            except BleakError:
-                await self._cleanup_all()
-                raise
+        # Get all services. This means making the actual connection.
+        try:
+            await self.get_services(skip_discovery=skip_discovery)
+        except BleakError:
+            await self._cleanup_all()
+            raise
 
         properties = await self._get_device_properties()
         if not properties.get("Connected"):
@@ -410,7 +409,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
     # GATT services methods
 
     @raise_on_bus_not_set
-    async def get_services(self) -> BleakGATTServiceCollection:
+    async def get_services(
+            self, skip_discovery: bool = False) -> BleakGATTServiceCollection:
         """Get all services registered for this GATT server.
 
         Returns:
@@ -434,6 +434,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         if not services_resolved:
             raise BleakError("Services discovery error")
+
+        if skip_discovery:
+            return self.services
 
         logger.debug("Get Services...")
         objs = await get_managed_objects(
