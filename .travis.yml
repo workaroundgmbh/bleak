@@ -20,7 +20,7 @@ before_deploy:
 deploy:
   provider: script
   skip_cleanup: true
-  script: cloudsmith push python --republish proglove/gateway dist/bleak_proglove-*.whl
+  script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
   on:
     branch: proglove
 
