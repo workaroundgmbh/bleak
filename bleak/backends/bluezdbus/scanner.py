@@ -141,7 +141,10 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
 
         logger.debug(f"cached devices: {self._cached_devices}")
 
-        # Apply the filters
+        await self.resume()
+
+    async def resume(self):
+        # Apply filters
         reply = await self._bus.call(
             Message(
                 destination=defs.BLUEZ_SERVICE,
@@ -165,7 +168,7 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
         )
         assert_reply(reply)
 
-    async def stop(self):
+    async def suspend(self):
         reply = await self._bus.call(
             Message(
                 destination=defs.BLUEZ_SERVICE,
@@ -175,6 +178,9 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
             )
         )
         assert_reply(reply)
+
+    async def stop(self):
+        await self.suspend()
 
         for rule in self._rules:
             await remove_match(self._bus, rule)
@@ -188,6 +194,8 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
             logger.error("Attempt to disconnect system bus failed: {0}".format(e))
 
         self._bus = None
+
+
 
     def set_scanning_filter(self, **kwargs):
         """Sets OS level scanning filters for the BleakScanner.
