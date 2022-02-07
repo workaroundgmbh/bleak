@@ -127,35 +127,15 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
         self._adapter_path, self._interface = _filter_on_adapter(objects, self._device)
         self._cached_devices = dict(_filter_on_device(objects))
 
-        # Apply the filters
-        await self._bus.callRemote(
-            self._adapter_path,
-            "SetDiscoveryFilter",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
-            signature="a{sv}",
-            body=[self._filters],
-        ).asFuture(self.loop)
-
-        # Start scanning
-        await self._bus.callRemote(
-            self._adapter_path,
-            "StartDiscovery",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
-        ).asFuture(self.loop)
+        await self.resume()
 
     async def stop(self):
-        await self._bus.callRemote(
-            self._adapter_path,
-            "StopDiscovery",
-            interface="org.bluez.Adapter1",
-            destination="org.bluez",
-        ).asFuture(self.loop)
+        await self.suspend()
 
         for rule in self._rules:
-            await self._bus.delMatch(rule).asFuture(self.loop)
+            await remove_match(self._bus, rule)
         self._rules.clear()
+        self._bus.remove_message_handler(self._parse_msg)
 
         # Try to disconnect the System Bus.
         try:
@@ -163,10 +143,59 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
         except Exception as e:
             logger.error("Attempt to disconnect system bus failed: {0}".format(e))
 
-        try:
-            self._reactor.stop()
-        except ReactorNotRunning:
-            pass
+        self._bus = None
+
+    # add suspend()
+    async def suspend(self):
+        reply = await self._bus.call(
+            Message(
+                destination=defs.BLUEZ_SERVICE,
+                path=self._adapter_path,
+                interface=defs.ADAPTER_INTERFACE,
+                member="StopDiscovery",
+            )
+        )
+        assert_reply(reply)
+
+    # add resume()
+    async def resume(self):
+        # if self.is_scanning:
+        #     return
+
+        # Apply filters
+        reply = await self._bus.call(
+        Message(
+            destination=defs.BLUEZ_SERVICE,
+            path=self._adapter_path,
+            interface=defs.ADAPTER_INTERFACE,
+            member="SetDiscoveryFilter",
+            signature="a{sv}",
+            body=[self._filters],
+                )
+        )
+        assert_reply(reply)
+
+        # Start scanning
+        reply = await self._bus.call(
+            Message(
+                destination=defs.BLUEZ_SERVICE,
+                path=self._adapter_path,
+                interface=defs.ADAPTER_INTERFACE,
+                member="StartDiscovery",
+            )
+        )
+        assert_reply(reply)
+        # except RemoteError as e:
+        #     logger.error("Stop discovery failed: {0}".format(e))
+
+        # self.is_scanning = True
+
+    def set_scanning_filter(self, **kwargs):
+        """Sets OS level scanning filters for the BleakScanner.
+
+        For possible values for `filters`, see the parameters to the
+        ``SetDiscoveryFilter`` method in the `BlueZ docs
+        <https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/adapter-api.txt?h=5.48&id=0d1e3b9c5754022c779da129025d493a198d49cf>`_
 
         self._bus = None
         self._reactor = None
