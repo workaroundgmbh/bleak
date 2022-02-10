@@ -6,6 +6,7 @@ import inspect
 import logging
 import asyncio
 import os
+import re
 import warnings
 from typing import Any, Callable, Dict, Optional, Union
 from uuid import UUID
@@ -33,6 +34,7 @@ from bleak.exc import BleakDBusError, BleakError
 
 
 logger = logging.getLogger(__name__)
+
 
 
 class BleakClientBlueZDBus(BaseBleakClient):
@@ -83,6 +85,28 @@ class BleakClientBlueZDBus(BaseBleakClient):
         self._write_without_response_workaround_needed = not check_bluez_version(5, 51)
         self._hides_battery_characteristic = check_bluez_version(5, 48)
         self._hides_device_name_characteristic = check_bluez_version(5, 48)
+        self._cache_enabled: Optional[bool] = None
+
+
+    def _is_cache_enabled(self) -> bool:
+
+        if self._cache_enabled is not None:
+            return self._cache_enabled
+
+        self._cache_enabled = True
+        try:
+            with open('/etc/bluetooth/main.conf') as f:
+                for line in f:
+                    r = re.match(
+                        r'^\s*Cache\s*=\s*(always|yes|no)\s*$', line)
+                    if r is not None:
+                        cache_value = r.group(1)
+                        self._cache_enabled = cache_value in ('yes', 'always')
+                        break
+        except (PermissionError, FileNotFoundError):
+            pass
+
+        return self._cache_enabled
 
     # Connectivity methods
 
@@ -951,16 +975,17 @@ class BleakClientBlueZDBus(BaseBleakClient):
             characteristic = char_specifier
         if not characteristic:
             raise BleakError("Characteristic {} not found!".format(char_specifier))
-
-        reply = await self._bus.call(
-            Message(
-                destination=defs.BLUEZ_SERVICE,
-                path=characteristic.path,
-                interface=defs.GATT_CHARACTERISTIC_INTERFACE,
-                member="StopNotify",
+        
+        if self._is_cache_enabled():
+            reply = await self._bus.call(
+                Message(
+                    destination=defs.BLUEZ_SERVICE,
+                    path=characteristic.path,
+                    interface=defs.GATT_CHARACTERISTIC_INTERFACE,
+                    member="StopNotify",
+                )
             )
-        )
-        assert_reply(reply)
+            assert_reply(reply)
 
         self._notification_callbacks.pop(characteristic.path, None)
 
