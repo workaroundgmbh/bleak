@@ -6,6 +6,7 @@ import inspect
 import logging
 import asyncio
 import os
+import re
 import warnings
 from typing import Callable, Optional, Union
 from uuid import UUID
@@ -76,6 +77,29 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         # used to override mtu_size property
         self._mtu_size: Optional[int] = None
+
+        self._cache_enabled: Optional[bool] = None
+
+
+    def _is_cache_enabled(self) -> bool:
+
+        if self._cache_enabled is not None:
+            return self._cache_enabled
+
+        self._cache_enabled = True
+        try:
+            with open('/etc/bluetooth/main.conf') as f:
+                for line in f:
+                    r = re.match(
+                        r'^\s*Cache\s*=\s*(always|yes|no)\s*$', line)
+                    if r is not None:
+                        cache_value = r.group(1)
+                        self._cache_enabled = cache_value in ('yes', 'always')
+                        break
+        except (PermissionError, FileNotFoundError):
+            pass
+
+        return self._cache_enabled
 
     # Connectivity methods
 
@@ -872,14 +896,15 @@ class BleakClientBlueZDBus(BaseBleakClient):
         if not characteristic:
             raise BleakError("Characteristic {} not found!".format(char_specifier))
 
-        reply = await self._bus.call(
-            Message(
-                destination=defs.BLUEZ_SERVICE,
-                path=characteristic.path,
-                interface=defs.GATT_CHARACTERISTIC_INTERFACE,
-                member="StopNotify",
+        if self._is_cache_enabled():
+            reply = await self._bus.call(
+                Message(
+                    destination=defs.BLUEZ_SERVICE,
+                    path=characteristic.path,
+                    interface=defs.GATT_CHARACTERISTIC_INTERFACE,
+                    member="StopNotify",
+                )
             )
-        )
-        assert_reply(reply)
+            assert_reply(reply)
 
         self._notification_callbacks.pop(characteristic.path, None)
