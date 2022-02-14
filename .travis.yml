@@ -2,7 +2,7 @@
 dist: bionic
 language: python
 python:
-  - "3.6"
+  - "3.7"
 
 install:
   - pip install wheel
@@ -14,7 +14,7 @@ script:
   - python3 setup.py bdist_wheel
 
 before_deploy:
-  - pyenv global 3.6
+  - pyenv global 3.7
   - pip install cloudsmith-cli
 
 deploy:
