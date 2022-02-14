@@ -340,6 +340,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
             # Get all services. This means making the actual connection.
             await self.get_services()
 
+            await self._acquire_mtu()
+
             return True
         except BaseException:
             self._cleanup_all()
