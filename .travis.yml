@@ -2,20 +2,15 @@
 dist: bionic
 language: python
 python:
-  - "3.6"
+  - "3.9.5"
 
-install:
-  - pip install wheel
-  - pip install -r requirements_dev.txt
+install: 
+  - pyenv global 3.9.5
+  - pip3 install -U pip wheel setuptools
+  - pip3 install cloudsmith-cli poetry==1.2.0
 
 script:
-  # Ensure the 'dist' folder is empty before building the new Python package
-  - rm -Rf dist
-  - python3 setup.py bdist_wheel
-
-before_deploy:
-  - pyenv global 3.6
-  - pip install cloudsmith-cli
+  - poetry build
 
 deploy:
   provider: script
