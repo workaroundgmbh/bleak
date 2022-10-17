@@ -1,0 +1,20 @@
+# Configurations
+dist: bionic
+language: python
+python:
+  - "3.9.5"
+
+install:
+  - pyenv global 3.9.5
+  - pip3 install -U pip wheel setuptools
+  - pip3 install cloudsmith-cli poetry==1.2.0
+
+script:
+  - poetry build
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+  on:
+    branch: proglove-v0.19.0
