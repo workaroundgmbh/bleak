@@ -27,6 +27,10 @@ GATT_SERVICE_INTERFACE = "org.bluez.GattService1"
 GATT_CHARACTERISTIC_INTERFACE = "org.bluez.GattCharacteristic1"
 GATT_DESCRIPTOR_INTERFACE = "org.bluez.GattDescriptor1"
 
+# Profilter
+PROFILTER_INTERFACE = "org.profilter.Agent1"
+PROFILTER_OBJECT_PATH = "/org/profilter/Agent1"
+
 
 # D-Bus properties for interfaces
 # https://github.com/bluez/bluez/blob/master/doc/adapter-api.txt
