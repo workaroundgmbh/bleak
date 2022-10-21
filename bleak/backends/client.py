@@ -46,7 +46,7 @@ class BaseBleakClient(abc.ABC):
 
         self._services_resolved = False
 
-        self._timeout = kwargs.get("timeout", 10.0)
+        self._timeout = kwargs.get("timeout", 20.0)
         self._disconnected_callback = kwargs.get("disconnected_callback")
 
     @property

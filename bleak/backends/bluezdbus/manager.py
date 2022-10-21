@@ -196,25 +196,33 @@ class BlueZManager:
                 bus.add_message_handler(self._parse_msg)
 
                 rules = MatchRules(
-                    interface=defs.OBJECT_MANAGER_INTERFACE,
-                    member="InterfacesAdded",
-                    arg0path="/org/bluez/",
+                    interface=defs.PROFILTER_INTERFACE,
+                    member="AdvertisementReceived",
+                    path=defs.PROFILTER_OBJECT_PATH
                 )
                 reply = await add_match(bus, rules)
                 assert_reply(reply)
 
                 rules = MatchRules(
-                    interface=defs.OBJECT_MANAGER_INTERFACE,
+                    interface=defs.PROFILTER_INTERFACE,
+                    member="PropertiesChanged",
+                    path_namespace="/org/bluez",
+                )
+                reply = await add_match(bus, rules)
+                assert_reply(reply)
+
+                rules = MatchRules(
+                    interface=defs.PROFILTER_INTERFACE,
                     member="InterfacesRemoved",
                     arg0path="/org/bluez/",
                 )
                 reply = await add_match(bus, rules)
                 assert_reply(reply)
-
+                
                 rules = MatchRules(
-                    interface=defs.PROPERTIES_INTERFACE,
-                    member="PropertiesChanged",
-                    path_namespace="/org/bluez",
+                    interface=defs.PROFILTER_INTERFACE,
+                    member="BeaconReceived",
+                    path=defs.PROFILTER_OBJECT_PATH
                 )
                 reply = await add_match(bus, rules)
                 assert_reply(reply)
@@ -346,9 +354,9 @@ class BlueZManager:
                 # Apply the filters
                 reply = await self._bus.call(
                     Message(
-                        destination=defs.BLUEZ_SERVICE,
-                        path=adapter_path,
-                        interface=defs.ADAPTER_INTERFACE,
+                        destination=defs.PROFILTER_INTERFACE,
+                        interface=defs.PROFILTER_INTERFACE,
+                        path=defs.PROFILTER_OBJECT_PATH,
                         member="SetDiscoveryFilter",
                         signature="a{sv}",
                         body=[filters],
@@ -359,9 +367,9 @@ class BlueZManager:
                 # Start scanning
                 reply = await self._bus.call(
                     Message(
-                        destination=defs.BLUEZ_SERVICE,
-                        path=adapter_path,
-                        interface=defs.ADAPTER_INTERFACE,
+                        destination=defs.PROFILTER_INTERFACE,
+                        interface=defs.PROFILTER_INTERFACE,
+                        path=defs.PROFILTER_OBJECT_PATH,
                         member="StartDiscovery",
                     )
                 )
@@ -379,9 +387,9 @@ class BlueZManager:
                     async with self._bus_lock:
                         reply = await self._bus.call(
                             Message(
-                                destination=defs.BLUEZ_SERVICE,
-                                path=adapter_path,
-                                interface=defs.ADAPTER_INTERFACE,
+                                destination=defs.PROFILTER_INTERFACE,
+                                interface=defs.PROFILTER_INTERFACE,
+                                path=defs.PROFILTER_OBJECT_PATH,
                                 member="StopDiscovery",
                             )
                         )
@@ -390,9 +398,9 @@ class BlueZManager:
                         # remove the filters
                         reply = await self._bus.call(
                             Message(
-                                destination=defs.BLUEZ_SERVICE,
-                                path=adapter_path,
-                                interface=defs.ADAPTER_INTERFACE,
+                                destination=defs.PROFILTER_INTERFACE,
+                                interface=defs.PROFILTER_INTERFACE,
+                                path=defs.PROFILTER_OBJECT_PATH,
                                 member="SetDiscoveryFilter",
                                 signature="a{sv}",
                                 body=[{}],
@@ -569,7 +577,6 @@ class BlueZManager:
             if services is not None:
                 logger.debug("Using cached services for %s", device_path)
                 return services
-
         await self._wait_condition(device_path, "ServicesResolved", True)
 
         services = BleakGATTServiceCollection()
@@ -706,7 +713,7 @@ class BlueZManager:
         changed: Dict[str, Variant]
         invalidated: List[str]
 
-        if message.member == "InterfacesAdded":
+        if message.member in ("AdvertisementReceived", "BeaconReceived"):
             obj_path, interfaces_and_props = message.body
 
             for interface, props in interfaces_and_props.items():
@@ -802,7 +809,6 @@ class BlueZManager:
 
                 if interface == defs.DEVICE_INTERFACE:
                     # handle advertisement watchers
-
                     self._run_advertisement_callbacks(
                         message.path, cast(Device1, self_interface), changed.keys()
                     )
