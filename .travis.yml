@@ -17,4 +17,4 @@ deploy:
   skip_cleanup: true
   script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
   on:
-    branch: proglove-v0.19.0
+    branch: proglove-v0.19.0-profilter
