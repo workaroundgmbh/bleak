@@ -665,20 +665,35 @@ class BlueZManager:
         ):
             return
 
-        event = asyncio.Event()
+        class _Waiter:
+            def __init__(self) -> None:
+                self.event = asyncio.Event()
+                self.exception: Optional[BaseException] = None
+
+        waiter = _Waiter()
 
         def callback():
             if (
+                self._properties[device_path][defs.DEVICE_INTERFACE]["Connected"]
+                is False
+            ):
+                waiter.exception = BleakError(
+                    "failed to discover services, device disconnected"
+                )
+                waiter.event.set()
+            elif (
                 self._properties[device_path][defs.DEVICE_INTERFACE][property_name]
                 == property_value
             ):
-                event.set()
+                waiter.event.set()
 
         self._condition_callbacks.add(callback)
 
         try:
             # can be canceled
-            await event.wait()
+            await waiter.event.wait()
+            if waiter.exception is not None:
+                raise waiter.exception
         finally:
             self._condition_callbacks.remove(callback)
 
