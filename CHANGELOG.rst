@@ -10,6 +10,11 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 `Unreleased`_
 =============
 
+Fixed
+-----
+* BlueZ: Cancel the device discovery wait task if the device disconnects in
+  between to avoid a timeout
+
 `0.19.0`_ (2022-10-13)
 ======================
 
