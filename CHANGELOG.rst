@@ -7,8 +7,39 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
-`Unreleased`_
-=============
+`0.19.4`_ (2022-11-06)
+======================
+
+Fixed
+-----
+* Fixed ``TypeError`` in WinRT backend introduced in v0.19.3.
+
+
+`0.19.3`_ (2022-11-06)
+======================
+
+Fixed
+-----
+* Fixed ``TimeoutError`` when connecting to certain devices with WinRT backend. Fixes #604.
+
+
+`0.19.2`_ (2022-11-06)
+======================
+
+Fixed
+------
+* Fixed crash when getting services in WinRT backend in Python 3.11. Fixes #1112.
+* Fixed cache mode when retrying get services in WinRT backend. Merged #1102.
+* Fixed ``KeyError`` crash in BlueZ backend when removing non-existent property. Fixes #1107.
+
+`0.19.1`_ (2022-10-29)
+======================
+
+Fixed
+-----
+* Fixed crash in Android backend introduced in v0.19.0. Fixes #1085.
+* Fixed service discovery blocking forever if device disconnects in BlueZ backend. Merged #1092.
+* Fixed ``AttributeError`` crash when scanning on Windows builds < 19041. Fixes #1094.
 
 Fixed
 -----
@@ -846,7 +877,11 @@ Fixed
 * Bleak created.
 
 
-.. _Unreleased: https://github.com/hbldh/bleak/compare/v0.19.0...develop
+.. _Unreleased: https://github.com/hbldh/bleak/compare/v0.19.4...develop
+.. _0.19.4: https://github.com/hbldh/bleak/compare/v0.19.3...v0.19.4
+.. _0.19.3: https://github.com/hbldh/bleak/compare/v0.19.2...v0.19.3
+.. _0.19.2: https://github.com/hbldh/bleak/compare/v0.19.1...v0.19.2
+.. _0.19.1: https://github.com/hbldh/bleak/compare/v0.19.0...v0.19.1
 .. _0.19.0: https://github.com/hbldh/bleak/compare/v0.18.1...v0.19.0
 .. _0.18.1: https://github.com/hbldh/bleak/compare/v0.18.0...v0.18.1
 .. _0.18.0: https://github.com/hbldh/bleak/compare/v0.17.0...v0.18.0

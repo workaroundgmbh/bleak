@@ -570,7 +570,7 @@ class BlueZManager:
                 logger.debug("Using cached services for %s", device_path)
                 return services
 
-        await self._wait_for_services_disovery(device_path)
+        await self._wait_for_services_discovery(device_path)
 
         services = BleakGATTServiceCollection()
 
@@ -648,11 +648,11 @@ class BlueZManager:
         except KeyError:
             return False
 
-    async def _wait_for_services_disovery(self, device_path: str) -> None:
-        """Wait for the device services to be discovered.
+    async def _wait_for_services_discovery(self, device_path: str) -> None:
+        """
+        Waits for the device services to be discovered.
 
         If a disconnect happens before the completion a BleakError exception is raised.
-
         """
         services_discovered_wait_task = asyncio.create_task(
             self._wait_condition(device_path, "ServicesResolved", True)
@@ -818,7 +818,12 @@ class BlueZManager:
                 self_interface.update(unpack_variants(changed))
 
                 for name in invalidated:
-                    del self_interface[name]
+                    try:
+                        del self_interface[name]
+                    except KeyError:
+                        # sometimes there BlueZ tries to remove properties
+                        # that were never added
+                        pass
 
                 # then call any callbacks so they will be called with the
                 # updated state
