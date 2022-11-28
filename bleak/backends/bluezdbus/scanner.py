@@ -171,7 +171,7 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
             raise BleakError("passive scanning mode requires bluez or_patterns")
 
     async def start(self):
-        manager = await get_global_bluez_manager()
+        manager = await get_global_bluez_manager(params=self._filters)
 
         if self._adapter:
             adapter_path = f"/org/bluez/{self._adapter}"
