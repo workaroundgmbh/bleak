@@ -171,7 +171,7 @@ class BlueZManager:
         self._condition_callbacks: Set[Callable] = set()
         self._services_cache: Dict[str, BleakGATTServiceCollection] = {}
 
-    async def async_init(self):
+    async def async_init(self, params: Dict[str, Any] = {}):
         """
         Connects to the D-Bus message bus and begins monitoring signals.
 
@@ -194,35 +194,53 @@ class BlueZManager:
                 # Add signal listeners
 
                 bus.add_message_handler(self._parse_msg)
+                
+                uuids_list: List[str] = []
+                uuids: Variant = params.get('UUIDs')
+                if uuids is not None:
+                    uuids_list = uuids.value
+
+                if defs.PROGLOVE_BEACON_UUID in uuids_list:
+                    # subscribe to profilter signals
+                    logger.info("Subscribing to profilter signals")
+                    interfaces_dest = defs.PROFILTER_INTERFACE
+                    properties_dest = interfaces_dest
+
+                    for member in ["AdvertisementReceived", "BeaconReceived"]:
+                        rules = MatchRules(
+                            interface=defs.PROFILTER_INTERFACE,
+                            member=member,
+                            path=defs.PROFILTER_OBJECT_PATH
+                        )
+                        reply = await add_match(bus, rules)
+                        assert_reply(reply)
+
+                else:
+                    # subscribe to BlueZ signals directly
+                    logger.info("Subscribing to BlueZ signals directly")
+                    interfaces_dest = defs.OBJECT_MANAGER_INTERFACE
+                    properties_dest = defs.PROPERTIES_INTERFACE
+
+                    rules = MatchRules(
+                        interface=interfaces_dest,
+                        member="InterfacesAdded",
+                        arg0path="/org/bluez/",
+                    )
+                    reply = await add_match(bus, rules)
+                    assert_reply(reply)
 
                 rules = MatchRules(
-                    interface=defs.PROFILTER_INTERFACE,
-                    member="AdvertisementReceived",
-                    path=defs.PROFILTER_OBJECT_PATH
-                )
-                reply = await add_match(bus, rules)
-                assert_reply(reply)
-
-                rules = MatchRules(
-                    interface=defs.PROFILTER_INTERFACE,
-                    member="PropertiesChanged",
-                    path_namespace="/org/bluez",
-                )
-                reply = await add_match(bus, rules)
-                assert_reply(reply)
-
-                rules = MatchRules(
-                    interface=defs.PROFILTER_INTERFACE,
+                    interface=interfaces_dest,
                     member="InterfacesRemoved",
                     arg0path="/org/bluez/",
                 )
                 reply = await add_match(bus, rules)
                 assert_reply(reply)
-                
+
                 rules = MatchRules(
-                    interface=defs.PROFILTER_INTERFACE,
-                    member="BeaconReceived",
-                    path=defs.PROFILTER_OBJECT_PATH
+                    interface=properties_dest,
+                    member="PropertiesChanged",
+                    path_namespace="/org/bluez",
                 )
                 reply = await add_match(bus, rules)
                 assert_reply(reply)
@@ -339,6 +357,11 @@ class BlueZManager:
             # If the adapter doesn't exist, then the message calls below would
             # fail with "method not found". This provides a more informative
             # error message.
+            uuid_list: List[str] = []
+            uuids: Variant = filters.get("UUIDs")
+            if uuids is not None:
+                uuid_list = uuids.value
+            
             if adapter_path not in self._properties:
                 raise BleakError(f"adapter '{adapter_path.split('/')[-1]}' not found")
 
@@ -352,11 +375,20 @@ class BlueZManager:
 
             try:
                 # Apply the filters
+                if defs.PROGLOVE_BEACON_UUID in uuid_list:
+                    destination = defs.PROFILTER_INTERFACE
+                    interface = defs.PROFILTER_INTERFACE
+                    obj_path = defs.PROFILTER_OBJECT_PATH
+                else:
+                    destination = defs.BLUEZ_SERVICE
+                    interface = defs.ADAPTER_INTERFACE
+                    obj_path = adapter_path
+
                 reply = await self._bus.call(
                     Message(
-                        destination=defs.PROFILTER_INTERFACE,
-                        interface=defs.PROFILTER_INTERFACE,
-                        path=defs.PROFILTER_OBJECT_PATH,
+                        destination=destination,
+                        path=obj_path,
+                        interface=interface,
                         member="SetDiscoveryFilter",
                         signature="a{sv}",
                         body=[filters],
@@ -367,9 +399,9 @@ class BlueZManager:
                 # Start scanning
                 reply = await self._bus.call(
                     Message(
-                        destination=defs.PROFILTER_INTERFACE,
-                        interface=defs.PROFILTER_INTERFACE,
-                        path=defs.PROFILTER_OBJECT_PATH,
+                        destination=destination,
+                        interface=interface,
+                        path=obj_path,
                         member="StartDiscovery",
                     )
                 )
@@ -387,9 +419,9 @@ class BlueZManager:
                     async with self._bus_lock:
                         reply = await self._bus.call(
                             Message(
-                                destination=defs.PROFILTER_INTERFACE,
-                                interface=defs.PROFILTER_INTERFACE,
-                                path=defs.PROFILTER_OBJECT_PATH,
+                                destination=destination,
+                                interface=interface,
+                                path=obj_path,
                                 member="StopDiscovery",
                             )
                         )
@@ -398,9 +430,9 @@ class BlueZManager:
                         # remove the filters
                         reply = await self._bus.call(
                             Message(
-                                destination=defs.PROFILTER_INTERFACE,
-                                interface=defs.PROFILTER_INTERFACE,
-                                path=defs.PROFILTER_OBJECT_PATH,
+                                destination=destination,
+                                interface=interface,
+                                path=obj_path,
                                 member="SetDiscoveryFilter",
                                 signature="a{sv}",
                                 body=[{}],
@@ -737,7 +769,7 @@ class BlueZManager:
         changed: Dict[str, Variant]
         invalidated: List[str]
 
-        if message.member in ("AdvertisementReceived", "BeaconReceived"):
+        if message.member in ("AdvertisementReceived", "BeaconReceived", "InterfacesAdded"):
             obj_path, interfaces_and_props = message.body
 
             for interface, props in interfaces_and_props.items():
@@ -888,7 +920,7 @@ class BlueZManager:
 _global_instances: MutableMapping[Any, BlueZManager] = WeakKeyDictionary()
 
 
-async def get_global_bluez_manager() -> BlueZManager:
+async def get_global_bluez_manager(params: Dict[str, Any] = {}) -> BlueZManager:
     """
     Gets an existing initialized global BlueZ manager instance associated with the current event loop,
     or initializes a new instance.
@@ -900,6 +932,6 @@ async def get_global_bluez_manager() -> BlueZManager:
     except KeyError:
         instance = _global_instances[loop] = BlueZManager()
 
-    await instance.async_init()
+    await instance.async_init(params)
 
     return instance
