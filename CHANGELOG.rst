@@ -7,6 +7,43 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+`Unreleased`_
+=============
+
+Added
+-----
+* Added optional hack to use Bluetooth address instead of UUID on macOS.
+* Added ``BleakScanner.find_device_by_name()`` class method.
+* Added optional command line argument to use debug log level to all applicable examples.
+* Make sure the disconnect monitor task is properly cancelled on the BlueZ client.
+
+Changed
+-------
+* Dropped ``async-timeout`` dependency on Python >= 3.11.
+* Deprecated ``BLEDevice.rssi`` and ``BLEDevice.metadata``. Fixes #1025.
+* ``BLEDevice`` now uses ``__slots__`` to reduce memory usage.
+* ``BaseBleakClient.services`` is now ``None`` instead of empty service collection
+  until services are discovered.
+* Include thread name in ``BLEAK_LOGGING`` output. Merged #1144.
+
+Fixed
+-----
+* Fixed ``AttributeError`` in ``_ensure_success`` in WinRT backend.
+* Fixed ``BleakScanner.stop()`` can raise ``BleakDBusError`` with ``org.bluez.Error.NotReady`` in BlueZ backend.
+* Fixed ``BleakScanner.stop()`` hanging in WinRT backend when Bluetooth is disabled.
+
+Fixed
+-----
+- Fixed invalid UTF-8 in ``uuids.uuid16_dict``.
+
+`0.19.5`_ (2022-11-19)
+======================
+
+Fixed
+-----
+* Fixed more issues with getting services in WinRT backend.
+
+
 `0.19.4`_ (2022-11-06)
 ======================
 
@@ -877,7 +914,8 @@ Fixed
 * Bleak created.
 
 
-.. _Unreleased: https://github.com/hbldh/bleak/compare/v0.19.4...develop
+.. _Unreleased: https://github.com/hbldh/bleak/compare/v0.19.5...develop
+.. _0.19.5: https://github.com/hbldh/bleak/compare/v0.19.4...v0.19.5
 .. _0.19.4: https://github.com/hbldh/bleak/compare/v0.19.3...v0.19.4
 .. _0.19.3: https://github.com/hbldh/bleak/compare/v0.19.2...v0.19.3
 .. _0.19.2: https://github.com/hbldh/bleak/compare/v0.19.1...v0.19.2

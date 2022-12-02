@@ -5,11 +5,16 @@ BLE Client for BlueZ on Linux
 import asyncio
 import logging
 import os
+import sys
 import warnings
 from typing import Callable, Dict, Optional, Union, cast
 from uuid import UUID
 
-import async_timeout
+if sys.version_info < (3, 11):
+    from async_timeout import timeout as async_timeout
+else:
+    from asyncio import timeout as async_timeout
+
 from dbus_fast.aio import MessageBus
 from dbus_fast.constants import BusType, ErrorType, MessageType
 from dbus_fast.message import Message
@@ -156,6 +161,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
         )
         self._remove_device_watcher = lambda: manager.remove_device_watcher(watcher)
 
+        local_disconnect_monitor_event = asyncio.Event()
+
         try:
             try:
                 #
@@ -168,7 +175,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
                 #
                 if not manager.is_connected(self._device_path):
                     logger.debug("Connecting to BlueZ path %s", self._device_path)
-                    async with async_timeout.timeout(timeout):
+                    async with async_timeout(timeout):
                         reply = await self._bus.call(
                             Message(
                                 destination=defs.BLUEZ_SERVICE,
@@ -192,10 +199,10 @@ class BleakClientBlueZDBus(BaseBleakClient):
                 self._is_connected = True
 
                 # Create a task that runs until the device is disconnected.
-                self._disconnect_monitor_event = asyncio.Event()
+                self._disconnect_monitor_event = local_disconnect_monitor_event
                 asyncio.ensure_future(
                     self._disconnect_monitor(
-                        self._bus, self._device_path, self._disconnect_monitor_event
+                        self._bus, self._device_path, local_disconnect_monitor_event
                     )
                 )
 
@@ -243,6 +250,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
                 raise
         except BaseException:
+            # this effectively cancels the disconnect monitor in case the event
+            # was not triggered by a D-Bus callback
+            local_disconnect_monitor_event.set()
             self._cleanup_all()
             raise
 
@@ -306,8 +316,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
             self._bus = None
 
             # Reset all stored services.
-            self.services = BleakGATTServiceCollection()
-            self._services_resolved = False
+            self.services = None
 
     async def disconnect(self) -> bool:
         """Disconnect from the specified GATT server.
@@ -331,7 +340,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         if self._disconnecting_event:
             # another call to disconnect() is already in progress
             logger.debug(f"already in progress ({self._device_path})")
-            async with async_timeout.timeout(10):
+            async with async_timeout(10):
                 await self._disconnecting_event.wait()
         elif self.is_connected:
             self._disconnecting_event = asyncio.Event()
@@ -346,7 +355,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
                     )
                 )
                 assert_reply(reply)
-                async with async_timeout.timeout(10):
+                async with async_timeout(10):
                     await self._disconnecting_event.wait()
             finally:
                 self._disconnecting_event = None
@@ -584,7 +593,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
         if not self.is_connected:
             raise BleakError("Not connected")
 
-        if self._services_resolved:
+        if self.services is not None:
             return self.services
 
         manager = await get_global_bluez_manager()
@@ -592,7 +601,6 @@ class BleakClientBlueZDBus(BaseBleakClient):
         self.services = await manager.get_services(
             self._device_path, dangerous_use_bleak_cache
         )
-        self._services_resolved = True
 
         return self.services
 

@@ -28,7 +28,10 @@ from typing import (
 )
 from warnings import warn
 
-import async_timeout
+if sys.version_info < (3, 11):
+    from async_timeout import timeout as async_timeout
+else:
+    from asyncio import timeout as async_timeout
 
 if sys.version_info[:2] < (3, 8):
     from typing_extensions import Literal
@@ -50,13 +53,14 @@ from .exc import BleakError
 
 if TYPE_CHECKING:
     from .backends.bluezdbus.scanner import BlueZScannerArgs
+    from .backends.corebluetooth.scanner import CBScannerArgs
     from .backends.winrt.client import WinRTClientArgs
 
 
 _logger = logging.getLogger(__name__)
 _logger.addHandler(logging.NullHandler())
 if bool(os.environ.get("BLEAK_LOGGING", False)):
-    FORMAT = "%(asctime)-15s %(name)-8s %(levelname)s: %(message)s"
+    FORMAT = "%(asctime)-15s %(name)-8s %(threadName)s %(levelname)s: %(message)s"
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(logging.Formatter(fmt=FORMAT))
@@ -89,6 +93,8 @@ class BleakScanner:
             :class:`BleakError` if set to ``"passive"`` on macOS.
         bluez:
             Dictionary of arguments specific to the BlueZ backend.
+        cb:
+            Dictionary of arguments specific to the CoreBluetooth backend.
         backend:
             Used to override the automatically selected backend (i.e. for a
             custom backend).
@@ -111,6 +117,7 @@ class BleakScanner:
         scanning_mode: Literal["active", "passive"] = "active",
         *,
         bluez: BlueZScannerArgs = {},
+        cb: CBScannerArgs = {},
         backend: Optional[Type[BaseBleakScanner]] = None,
         **kwargs,
     ):
@@ -119,7 +126,12 @@ class BleakScanner:
         )
 
         self._backend = PlatformBleakScanner(
-            detection_callback, service_uuids, scanning_mode, bluez=bluez, **kwargs
+            detection_callback,
+            service_uuids,
+            scanning_mode,
+            bluez=bluez,
+            cb=cb,
+            **kwargs,
         )
 
     async def __aenter__(self):
@@ -272,11 +284,9 @@ class BleakScanner:
         """Obtain a ``BLEDevice`` for a BLE server specified by Bluetooth address or (macOS) UUID address.
 
         Args:
-            device_identifier (str): The Bluetooth/UUID address of the Bluetooth peripheral sought.
-            timeout (float): Optional timeout to wait for detection of specified peripheral before giving up. Defaults to 10.0 seconds.
-
-        Keyword Args:
-            adapter (str): Bluetooth adapter to use for discovery.
+            device_identifier: The Bluetooth/UUID address of the Bluetooth peripheral sought.
+            timeout: Optional timeout to wait for detection of specified peripheral before giving up. Defaults to 10.0 seconds.
+            **kwargs: additional args passed to the :class:`BleakScanner` constructor.
 
         Returns:
             The ``BLEDevice`` sought or ``None`` if not detected.
@@ -285,6 +295,27 @@ class BleakScanner:
         device_identifier = device_identifier.lower()
         return await cls.find_device_by_filter(
             lambda d, ad: d.address.lower() == device_identifier,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    @classmethod
+    async def find_device_by_name(
+        cls, name: str, timeout: float = 10.0, **kwargs
+    ) -> Optional[BLEDevice]:
+        """Obtain a ``BLEDevice`` for a BLE server specified by the local name in the advertising data.
+
+        Args:
+            name: The name sought.
+            timeout: Optional timeout to wait for detection of specified peripheral before giving up. Defaults to 10.0 seconds.
+            **kwargs: additional args passed to the :class:`BleakScanner` constructor.
+
+        Returns:
+            The ``BLEDevice`` sought or ``None`` if not detected.
+
+        """
+        return await cls.find_device_by_filter(
+            lambda d, ad: ad.local_name == name,
             timeout=timeout,
             **kwargs,
         )
@@ -322,7 +353,7 @@ class BleakScanner:
 
         async with cls(detection_callback=apply_filter, **kwargs):
             try:
-                async with async_timeout.timeout(timeout):
+                async with async_timeout(timeout):
                     return await found_device_queue.get()
             except asyncio.TimeoutError:
                 return None
@@ -545,7 +576,13 @@ class BleakClient:
         Gets the collection of GATT services available on the device.
 
         The returned value is only valid as long as the device is connected.
+
+        Raises:
+            BleakError: if service discovery has not been performed yet during this connection.
         """
+        if not self._backend.services:
+            raise BleakError("Service Discovery has not been performed yet")
+
         return self._backend.services
 
     # I/O methods
