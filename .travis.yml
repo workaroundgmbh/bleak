@@ -1,0 +1,24 @@
+os: linux
+dist: jammy
+language: python
+python:
+  - "3.10.5"
+
+addons:
+  apt:
+    packages:
+      - cython3
+
+install:
+  - pip3 install -U pip wheel setuptools
+  - pip3 install cloudsmith-cli poetry
+
+script:
+  - poetry build --format=sdist
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.tar.gz
+  on:
+    branch: proglove-v0.22.2-cython
