@@ -1,0 +1,19 @@
+os: linux
+dist: jammy
+language: python
+python:
+  - "3.11-dev"
+
+install:
+  - pip3 install -U pip wheel setuptools
+  - pip3 install cloudsmith-cli poetry
+
+script:
+  - poetry build
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+  on:
+    branch: proglove-v0.21.1
