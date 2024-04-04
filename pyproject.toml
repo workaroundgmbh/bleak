@@ -1,12 +1,12 @@
 [project]
-name = "bleak"
+name = "bleak-proglove"
 version = "3.1.0"
 description = "Bluetooth Low Energy platform Agnostic Klient"
 authors = [{ name = "Henrik Blidh", email = "henrik.blidh@nedomkull.com" }]
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.0"
 classifiers = [
     "Framework :: AsyncIO",
     "Operating System :: Microsoft :: Windows :: Windows 11",
