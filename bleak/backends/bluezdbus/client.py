@@ -274,6 +274,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
                             dangerous_use_bleak_cache=dangerous_use_bleak_cache
                         )
 
+                        await self._acquire_mtu()
+
                         return True
                     except BaseException:
                         # Calling Disconnect cancels any pending connect request. Also,
