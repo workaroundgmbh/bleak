@@ -34,6 +34,11 @@ BLUEZ_ERROR_NOT_PERMITTED = "org.bluez.Error.NotPermitted"
 BLUEZ_ERROR_NOT_READY = "org.bluez.Error.NotReady"
 BLUEZ_ERROR_NOT_SUPPORTED = "org.bluez.Error.NotSupported"
 
+# Profilter
+PROFILTER_INTERFACE = "org.profilter.Agent1"
+PROFILTER_OBJECT_PATH = "/org/profilter/Agent1"
+PROGLOVE_BEACON_UUID = "0000fced-0000-1000-8000-00805f9b34fb"
+
 # D-Bus properties for interfaces
 # https://github.com/bluez/bluez/blob/master/doc/org.bluez.Adapter.rst
 
