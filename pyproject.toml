@@ -1,5 +1,5 @@
 [project]
-name = "bleak"
+name = "bleak-proglove"
 version = "3.0.2"
 description = "Bluetooth Low Energy platform Agnostic Klient"
 authors = [{ name = "Henrik Blidh", email = "henrik.blidh@nedomkull.com" }]

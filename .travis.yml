@@ -1,0 +1,28 @@
+os: linux
+dist: jammy
+language: python
+python:
+  - 3.12
+
+install:
+  - pip3 install -U poetry
+
+script:
+  - poetry build
+
+before_deploy:
+  - wget 'https://github.com/cloudsmith-io/cloudsmith-cli/releases/download/v1.19.0/cloudsmith.pyz'
+  - chmod +x ./cloudsmith.pyz
+
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script: ./cloudsmith.pyz push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+    on:
+        branch: proglove-v3.0.2
+
+  - provider: script
+    skip_cleanup: true
+    script: ./cloudsmith.pyz push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+    on:
+        tags: true
