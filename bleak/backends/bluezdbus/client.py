@@ -148,6 +148,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
         manager = await get_global_bluez_manager()
 
+        skip_discovery = kwargs.get("skip_discovery", False)
+
         async with async_timeout(timeout):
             while True:
                 # Each BLE connection session needs a new D-Bus connection to avoid a
@@ -265,6 +267,9 @@ class BleakClientBlueZDBus(BaseBleakClient):
                         )
                         _background_tasks.add(task)
                         task.add_done_callback(_background_tasks.discard)
+
+                        if skip_discovery:
+                            return True
 
                         #
                         # We will try to use the cache if it exists and `dangerous_use_bleak_cache`
