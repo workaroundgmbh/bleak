@@ -175,7 +175,7 @@ class BleakClientBlueZDBus(BaseBleakClient):
                         if disconnecting_event:
                             disconnecting_event.set()
 
-                def on_value_changed(char_path: str, value: bytes) -> None:
+                def on_value_changed(char_path: str, value: bytearray) -> None:
                     callback = self._notification_callbacks.get(char_path)
 
                     if callback:
