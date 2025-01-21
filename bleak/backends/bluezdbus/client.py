@@ -443,6 +443,11 @@ class BleakClientBlueZDBus(BaseBleakClient):
         Caller is responsible for checking reply for errors.
         """
 
+        if self._bus is None:
+            self._bus = await MessageBus(
+                bus_type=BusType.SYSTEM, negotiate_unix_fd=True
+            ).connect()
+
         assert self._bus is not None
         assert self._device_path is not None
 
