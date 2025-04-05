@@ -238,9 +238,12 @@ class BleakScannerBlueZDBus(BaseBleakScanner):
             props: The D-Bus object properties of the device.
         """
         _service_uuids = props.get("UUIDs", [])
+        # check if device is paired and bonded
+        is_bonded = props.get("Paired", False) and props.get("Bonded", False)
 
         if not self.is_allowed_uuid(_service_uuids):
-            return
+            if not is_bonded:
+                return
 
         # Get all the information wanted to pack in the advertisement data
         _local_name = props.get("Name")
