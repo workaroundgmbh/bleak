@@ -6,6 +6,7 @@ if TYPE_CHECKING:
         assert False, "This backend is only available on Linux"
 
 import os
+import platform
 import re
 from typing import Optional
 
@@ -145,3 +146,20 @@ def get_dbus_authenticator() -> Optional[AuthExternal]:
         auth = AuthExternal(uid=uid)
 
     return auth
+
+
+def is_running_on_gateway() -> bool:
+    """
+    Determines if the code is running on a gateway device.
+
+    Proglove Gateways have a hostname that starts with "gateway-"
+    and has 5 to 6 decimal digits after the hyphen.
+
+    Returns:
+        True if running on a gateway device, False otherwise.
+    """
+    hostname = platform.node().lower()
+    cpu_arch = platform.machine().lower()
+    return re.match(r"^gateway-\d{5,6}$", hostname) is not None and cpu_arch.startswith(
+        "arm"
+    )

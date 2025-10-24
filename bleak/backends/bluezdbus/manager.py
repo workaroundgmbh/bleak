@@ -40,6 +40,7 @@ from bleak.backends.bluezdbus.utils import (
     device_path_from_characteristic_path,
     extract_service_handle_from_path,
     get_dbus_authenticator,
+    is_running_on_gateway,
 )
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
@@ -280,7 +281,7 @@ class BlueZManager:
                 if uuids is not None:
                     uuids_list = uuids.value
 
-                if defs.PROGLOVE_BEACON_UUID in uuids_list:
+                if defs.PROGLOVE_BEACON_UUID in uuids_list and is_running_on_gateway():
                     # subscribe to profilter signals
                     logger.info("Subscribing to profilter signals")
                     interfaces_interface = defs.PROFILTER_INTERFACE
