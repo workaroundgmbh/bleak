@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import platform
 import re
+import os
 from typing import Optional
 
 from dbus_fast.auth import AuthExternal
