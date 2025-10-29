@@ -485,7 +485,7 @@ class BlueZManager:
             self._device_removed_callbacks.append(device_removed_callback_and_state)
 
             try:
-                if defs.PROGLOVE_BEACON_UUID in uuids_list:
+                if defs.PROGLOVE_BEACON_UUID in uuids_list and is_running_on_gateway():
                     destination = defs.PROFILTER_INTERFACE
                     interface = defs.PROFILTER_INTERFACE
                     obj_path = defs.PROFILTER_OBJECT_PATH
