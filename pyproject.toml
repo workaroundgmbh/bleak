@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "bleak-proglove"
+name = "bleak-proglove-macos"
 version = "0.22.3"
 description = "Bluetooth Low Energy platform Agnostic Klient"
 authors = ["Henrik Blidh <henrik.blidh@nedomkull.com>"]

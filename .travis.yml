@@ -15,12 +15,12 @@ script:
 deploy:
   - provider: script
     skip_cleanup: true
-    script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+    script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove*.whl
     on:
-        branch: proglove-v0.22.3
+        branch: proglove-macos-v0.22.3
 
   - provider: script
     skip_cleanup: true
-    script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove-*.whl
+    script: cloudsmith push python --republish proglove/python-packages dist/bleak_proglove*.whl
     on:
         tags: true
