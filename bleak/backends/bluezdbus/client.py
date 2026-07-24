@@ -106,7 +106,11 @@ class BleakClientBlueZDBus(BaseBleakClient):
 
     @override
     async def connect(
-        self, pair: bool, dangerous_use_bleak_cache: bool = False, **kwargs: Any
+        self,
+        pair: bool,
+        dangerous_use_bleak_cache: bool = False,
+        skip_discovery: bool = False,
+        **kwargs: Any,
     ) -> None:
         """Connect to the specified GATT server.
 
@@ -149,6 +153,8 @@ class BleakClientBlueZDBus(BaseBleakClient):
         assert self._device_path is not None
 
         manager = await get_global_bluez_manager()
+
+        skip_discovery = kwargs.get("skip_discovery", False)
 
         async with async_timeout(timeout):
             while True:
@@ -320,11 +326,12 @@ class BleakClientBlueZDBus(BaseBleakClient):
                     _background_tasks.add(task)
                     task.add_done_callback(_background_tasks.discard)
 
-                    # We will try to use the cache if it exists and `dangerous_use_bleak_cache`
-                    # is True.
-                    await self._get_services(
-                        dangerous_use_bleak_cache=dangerous_use_bleak_cache
-                    )
+                    if not skip_discovery:
+                        # We will try to use the cache if it exists and `dangerous_use_bleak_cache`
+                        # is True.
+                        await self._get_services(
+                            dangerous_use_bleak_cache=dangerous_use_bleak_cache
+                        )
 
                     stack.pop_all()
                     return
